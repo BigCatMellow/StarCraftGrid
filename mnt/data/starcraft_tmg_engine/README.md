@@ -4,11 +4,11 @@ This build is a rules-first rewrite of the uploaded grid mockup.
 
 ## Current implementation status (March 2026)
 
-This build now supports full turn cadence through **Movement → Assault → Combat → Cleanup** with automated combat resolution and round scoring.
+This build now supports full turn cadence through **Movement → Assault → Combat → Cleanup** with interactive Combat-phase activations and round scoring.
 
 ## What is shipped and playable
 
-- alternating activation in Movement and Assault, with automated Combat resolution at phase transition
+- alternating activation in Movement, Assault, and Combat
 - all units begin in reserves
 - supply pool and available supply
 - deployment from entry edges
@@ -31,7 +31,7 @@ This build now supports full turn cadence through **Movement → Assault → Com
 ## Known limitations / still in progress
 
 - full Assault Phase action set (currently Run + Hold + Ranged declaration + Charge declaration)
-- full Combat Phase action set (combat currently resolves automatically after Assault)
+- full Combat Phase action set (combat queue is now interactive, but reactions/step detail are still streamlined)
 - faction cards (modifier hooks are now in place)
 - larger tactical card library and faction-specific card identities
 - richer terrain rule variety beyond current impassable + difficult cover movement

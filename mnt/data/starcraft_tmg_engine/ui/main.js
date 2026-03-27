@@ -247,6 +247,24 @@ function buildActionButtons() {
     return buttons;
   }
 
+  if (state.phase === "combat") {
+    const hasQueuedAttacks = state.combatQueue.some(entry =>
+      ["ranged_attack", "charge_attack", "overwatch_attack"].includes(entry.type) && entry.attackerId === unit.id
+    );
+
+    buttons.unshift(actionButton("Resolve Combat", "primary", () => {
+      const result = store.dispatch({
+        type: "RESOLVE_COMBAT_UNIT",
+        payload: {
+          playerId: "playerA",
+          unitId: unit.id
+        }
+      });
+      if (!result.ok) showError(result.message);
+    }, !hasQueuedAttacks));
+    return buttons;
+  }
+
   return buttons;
 }
 

@@ -3,6 +3,7 @@ import { validateHold, validateMove, validateDisengage } from "./movement.js";
 import { validateDeploy } from "./deployment.js";
 import { validateRun, validateDeclareRangedAttack, validateDeclareCharge } from "./assault.js";
 import { getPlayableCardActions } from "./cards.js";
+import { hasQueuedCombatForUnit } from "./combat.js";
 
 export function getLegalActionsForPlayer(state, playerId) {
   const units = getEligibleUnitsForCurrentPhase(state, playerId);
@@ -39,6 +40,13 @@ export function getLegalActionsForUnit(state, playerId, unitId) {
     descriptors.push({ type: "RUN_UNIT", unitId, enabled: !unit.status.engaged, uiHints: { requiresBoardClick: true } });
     descriptors.push({ type: "DECLARE_RANGED_ATTACK", unitId, enabled: validateDeclareRangedAttack(state, playerId, unitId).ok });
     descriptors.push({ type: "DECLARE_CHARGE", unitId, enabled: validateDeclareCharge(state, playerId, unitId).ok });
+    return descriptors;
+  }
+
+  if (state.phase === "combat") {
+    if (unit.status.location !== "battlefield") return descriptors;
+    descriptors.push({ type: "HOLD_UNIT", unitId, enabled: validateHold(state, playerId, unitId).ok });
+    descriptors.push({ type: "RESOLVE_COMBAT_UNIT", unitId, enabled: hasQueuedCombatForUnit(state, unitId) });
     return descriptors;
   }
 

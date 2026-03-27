@@ -88,11 +88,7 @@ export function beginAssaultPhase(state) {
 }
 
 export function beginCombatPhase(state) {
-  beginActivationPhase(state, "combat", "Combat Phase active. Resolving automatic ranged attacks.");
-  const combatResult = resolveCombatPhase(state);
-  if (!combatResult.ok) return combatResult;
-  appendLog(state, "phase", "Combat resolution complete.");
-  return beginCleanupPhase(state);
+  return beginActivationPhase(state, "combat", "Combat Phase active. Resolve queued attacks by unit or hold/pass to end combat.");
 }
 
 export function beginCleanupPhase(state) {
@@ -132,6 +128,11 @@ export function beginCleanupPhase(state) {
 export function advanceToNextPhase(state) {
   if (state.phase === "movement") return beginAssaultPhase(state);
   if (state.phase === "assault") return beginCombatPhase(state);
-  if (state.phase === "combat") return beginCleanupPhase(state);
+  if (state.phase === "combat") {
+    const combatResult = resolveCombatPhase(state);
+    if (!combatResult.ok) return combatResult;
+    appendLog(state, "phase", "Combat resolution complete.");
+    return beginCleanupPhase(state);
+  }
   return { ok: true, state, events: [] };
 }

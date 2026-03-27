@@ -106,3 +106,25 @@ test('assault AI plays focused_fire before declaring attacks when a valid shoote
   assert.equal(action.payload.targetUnitId, 'blue_marines_1');
   assert.match(action.payload.cardInstanceId, /focused_fire/);
 });
+
+test('combat AI resolves queued combat declarations when available', () => {
+  const state = createInitialGameState({
+    missionId: 'take_and_hold',
+    deploymentId: 'crossfire',
+    armyA: [{ id: 'blue_marines_1', templateId: 'marine_squad' }],
+    armyB: [{ id: 'red_zealots_1', templateId: 'zealot_squad' }],
+    firstPlayerMarkerHolder: 'playerA'
+  });
+
+  state.phase = 'combat';
+  state.activePlayer = 'playerA';
+  placeUnit(state, 'blue_marines_1', 16, 18);
+  placeUnit(state, 'red_zealots_1', 18, 18);
+  state.combatQueue.push({ type: 'ranged_attack', attackerId: 'blue_marines_1', targetId: 'red_zealots_1' });
+
+  const action = chooseAction(state, 'playerA');
+
+  assert.equal(action.type, 'RESOLVE_COMBAT_UNIT');
+  assert.equal(action.payload.playerId, 'playerA');
+  assert.equal(action.payload.unitId, 'blue_marines_1');
+});

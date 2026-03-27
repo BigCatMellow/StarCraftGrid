@@ -7,6 +7,7 @@ import { resolvePlayCard } from '../engine/cards.js';
 import { getLegalActionsForPlayer } from '../engine/legal_actions.js';
 import { createSeededRng } from './helpers/rng.mjs';
 import { resolveCombatPhase } from '../engine/combat.js';
+import { passPhase } from '../engine/activation.js';
 
 function placeUnitAt(state, unitId, x, y) {
   const unit = state.units[unitId];
@@ -89,8 +90,11 @@ test('combat phase still advances correctly after cards are used', () => {
   resolvePlayCard(state, 'playerA', cardInstanceId, 'blue_marines_1');
   state.combatQueue.push({ type: 'ranged_attack', attackerId: 'blue_marines_1', targetId: 'red_zealots_1' });
 
-  const result = beginCombatPhase(state);
-  assert.equal(result.ok, true);
+  const begin = beginCombatPhase(state);
+  assert.equal(begin.ok, true);
+  assert.equal(state.phase, 'combat');
+  assert.equal(passPhase(state, 'playerA').ok, true);
+  assert.equal(passPhase(state, 'playerB').ok, true);
   assert.equal(state.phase, 'movement');
   assert.equal(state.round, 2);
 });

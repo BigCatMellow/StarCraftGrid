@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { createInitialGameState } from '../engine/state.js';
 import { beginCombatPhase } from '../engine/phases.js';
 import { resolveCombatPhase } from '../engine/combat.js';
+import { passPhase } from '../engine/activation.js';
+import { getLegalActionsForPlayer } from '../engine/legal_actions.js';
 import { createSeededRng } from './helpers/rng.mjs';
 
 function buildState() {
@@ -160,18 +162,42 @@ test('ranged targets in cover receive defensive save benefit', () => {
   assert.ok(casualtiesWithCover <= casualtiesNoCover);
 });
 
-test('beginCombatPhase auto-resolves combat then proceeds to cleanup/next round', () => {
+test('beginCombatPhase is interactive and resolves queued attacks on phase pass-out', () => {
   const state = buildState();
-  state.phase = 'combat';
+  state.phase = 'assault';
   state.round = 1;
   placeUnitAt(state, 'blue_marines_1', 10, 10);
   placeUnitAt(state, 'red_zealots_1', 12, 10);
 
   state.combatQueue.push({ type: "ranged_attack", attackerId: "blue_marines_1", targetId: "red_zealots_1" });
-  const result = beginCombatPhase(state);
+  const begin = beginCombatPhase(state);
 
-  assert.equal(result.ok, true);
+  assert.equal(begin.ok, true);
+  assert.equal(state.phase, 'combat');
+  assert.equal(state.combatQueue.length, 1);
+
+  const passA = passPhase(state, 'playerA');
+  assert.equal(passA.ok, true);
+  const passB = passPhase(state, 'playerB');
+  assert.equal(passB.ok, true);
+
   assert.equal(state.phase, 'movement');
   assert.equal(state.round, 2);
+  assert.equal(state.combatQueue.length, 0);
   assert.equal(state.players.playerA.vp >= 0, true);
+});
+
+test('combat legal actions include RESOLVE_COMBAT_UNIT for queued attacker', () => {
+  const state = buildState();
+  placeUnitAt(state, 'blue_marines_1', 10, 10);
+  placeUnitAt(state, 'red_zealots_1', 12, 10);
+  state.phase = 'combat';
+  state.activePlayer = 'playerA';
+  state.combatQueue.push({ type: 'ranged_attack', attackerId: 'blue_marines_1', targetId: 'red_zealots_1' });
+
+  const actions = getLegalActionsForPlayer(state, 'playerA');
+  const resolveAction = actions.find(action => action.type === 'RESOLVE_COMBAT_UNIT' && action.unitId === 'blue_marines_1');
+
+  assert.ok(resolveAction);
+  assert.equal(resolveAction.enabled, true);
 });

@@ -321,9 +321,23 @@ function chooseAssaultPhaseAction(state, playerId) {
   return { type: "PASS_PHASE", payload: { playerId } };
 }
 
+function chooseCombatPhaseAction(state, playerId) {
+  const actions = getLegalActionsForPlayer(state, playerId);
+  const resolvers = actions.filter(action => action.type === "RESOLVE_COMBAT_UNIT" && action.enabled);
+  if (resolvers.length) {
+    const [best] = chooseUnitPriority(state, resolvers.map(action => action.unitId));
+    return { type: "RESOLVE_COMBAT_UNIT", payload: { playerId, unitId: best } };
+  }
+
+  const holds = actions.filter(action => action.type === "HOLD_UNIT" && action.enabled);
+  if (holds.length) return { type: "HOLD_UNIT", payload: { playerId, unitId: holds[0].unitId } };
+  return { type: "PASS_PHASE", payload: { playerId } };
+}
+
 export function chooseAction(state, playerId) {
   if (state.phase === "movement") return chooseMovementPhaseAction(state, playerId);
   if (state.phase === "assault") return chooseAssaultPhaseAction(state, playerId);
+  if (state.phase === "combat") return chooseCombatPhaseAction(state, playerId);
   return { type: "PASS_PHASE", payload: { playerId } };
 }
 

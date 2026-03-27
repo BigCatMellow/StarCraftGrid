@@ -115,7 +115,7 @@ test('declare charge also queues overwatch when defender has ranged weapon and h
   assert.equal(state.units.red_marines_1.status.overwatchUsedThisRound, true);
 });
 
-test('both players passing in assault resolves combat and advances round', () => {
+test('both players passing in assault advances into interactive combat phase', () => {
   const state = buildState();
   placeLeaderAt(state, 'blue_marines_1', 5, 5);
   placeLeaderAt(state, 'red_zealots_1', 30, 30);
@@ -125,11 +125,11 @@ test('both players passing in assault resolves combat and advances round', () =>
   const result = passPhase(state, 'playerB');
 
   assert.equal(result.ok, true);
-  assert.equal(state.phase, 'movement');
-  assert.equal(state.round, 2);
+  assert.equal(state.phase, 'combat');
+  assert.equal(state.round, 1);
 });
 
-test('assault auto-passes players with no eligible units and advances phase', () => {
+test('assault auto-passes players with no eligible units and advances to combat phase', () => {
   const state = createInitialGameState({
     missionId: 'take_and_hold',
     deploymentId: 'crossfire',
@@ -150,6 +150,6 @@ test('assault auto-passes players with no eligible units and advances phase', ()
   );
 
   assert.equal(action.ok, true);
-  assert.equal(state.phase, 'movement');
-  assert.equal(state.round, 2);
+  assert.equal(state.phase, 'combat');
+  assert.equal(state.round, 1);
 });

@@ -307,6 +307,39 @@ function resolveSingleAttack(state, declaration, rng) {
   };
 }
 
+export function hasQueuedCombatForUnit(state, unitId) {
+  return state.combatQueue.some(entry =>
+    ["ranged_attack", "charge_attack", "overwatch_attack"].includes(entry.type) && entry.attackerId === unitId
+  );
+}
+
+export function resolveCombatForUnit(state, unitId, { rng = Math.random } = {}) {
+  const events = [];
+  const declarations = state.combatQueue.filter(entry =>
+    ["ranged_attack", "charge_attack", "overwatch_attack"].includes(entry.type) && entry.attackerId === unitId
+  );
+
+  if (!declarations.length) {
+    return { ok: true, state, events };
+  }
+
+  for (const declaration of declarations) {
+    const event = resolveSingleAttack(state, declaration, rng);
+    if (event) {
+      events.push(event);
+      onEvent(state, event);
+    }
+  }
+
+  state.combatQueue = state.combatQueue.filter(entry =>
+    !(["ranged_attack", "charge_attack", "overwatch_attack"].includes(entry.type) && entry.attackerId === unitId)
+  );
+
+  refreshEngagement(state);
+  refreshAllSupply(state);
+  return { ok: true, state, events };
+}
+
 export function resolveCombatPhase(state, { rng = Math.random } = {}) {
   const events = [];
   state.lastCombatReport = [];
