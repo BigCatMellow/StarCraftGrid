@@ -1,7 +1,7 @@
 import { appendLog } from "./state.js";
 import { markUnitActivatedForMovement, endActivationAndPassTurn, isUnitEligibleForMovementActivation } from "./activation.js";
 import { moveUnitToBattlefield } from "./reserves.js";
-import { pointOnEntryEdge, pointInsideEnemyZoneOfInfluence, pathTravelCost, pathBlockedForCircle, pointInBoard, circleOverlapsTerrain, circleOverlapsCircle, distance } from "./geometry.js";
+import { pointOnEntryEdge, pointInsideEnemyZoneOfInfluence, pathTravelCost, gridDistance, pathBlockedForCircle, pointInBoard, circleOverlapsTerrain, circleOverlapsCircle, distance } from "./geometry.js";
 import { autoArrangeModels, applyModelPlacementsAndResolveCoherency } from "./coherency.js";
 import { refreshAllSupply, validateDeploySupply } from "./supply.js";
 import { refreshEngagement } from "./movement.js";
@@ -65,7 +65,7 @@ export function validateDeploy(state, playerId, unitId, leadingModelId, entryPoi
   if (!path || path.length < 2) return { ok: false, code: "NO_PATH", message: "Deploy requires a path." };
   const start = path[0];
   if (Math.abs(start.x - entryPoint.x) > 0.01 || Math.abs(start.y - entryPoint.y) > 0.01) return { ok: false, code: "PATH_ENTRY_MISMATCH", message: "Path must start at the chosen entry point." };
-  const travelCost = pathTravelCost(path, state.board.terrain);
+  const travelCost = state.rules?.gridMode ? gridDistance(path[0], path[path.length - 1]) : pathTravelCost(path, state.board.terrain);
   if (travelCost - unit.speed > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only deploy ${unit.speed}" (difficult terrain costs extra movement).` };
   const side = state.deployment.entryEdges[playerId].side;
   const adjustedStart = { ...entryPoint };

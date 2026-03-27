@@ -1,6 +1,6 @@
 import { appendLog } from "./state.js";
 import { markUnitActivatedForCurrentPhase, markUnitActivatedForMovement, endActivationAndPassTurn, isUnitEligibleForCurrentPhaseActivation } from "./activation.js";
-import { pointInBoard, pathLength, pathBlockedForCircle, pathTravelCost, circleOverlapsTerrain, circleOverlapsCircle, distance } from "./geometry.js";
+import { pointInBoard, pathLength, pathBlockedForCircle, pathTravelCost, gridDistance, circleOverlapsTerrain, circleOverlapsCircle, distance } from "./geometry.js";
 import { autoArrangeModels, applyModelPlacementsAndResolveCoherency } from "./coherency.js";
 import { refreshAllSupply } from "./supply.js";
 import { getModifiedValue } from "./effects.js";
@@ -104,6 +104,11 @@ function finalPointFromPath(path) {
   return path[path.length - 1];
 }
 
+function getMovementCost(state, path) {
+  if (state.rules?.gridMode) return gridDistance(path[0], path[path.length - 1]);
+  return pathTravelCost(path, state.board.terrain);
+}
+
 export function validateHold(state, playerId, unitId) {
   const shared = validateShared(state, playerId, unitId);
   if (!shared.ok) return shared;
@@ -140,7 +145,7 @@ export function validateMove(state, playerId, unitId, leadingModelId, path, mode
     key: "unit.speed",
     baseValue: unit.speed
   }).value;
-  const travelCost = pathTravelCost(path, state.board.terrain);
+  const travelCost = getMovementCost(state, path);
   if (travelCost - modifiedSpeed > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only move ${modifiedSpeed}" (difficult terrain costs extra movement).` };
   const ignore = new Set(unit.modelIds);
   if (pathBlockedForCircle(path, unit.base.radiusInches, state, ignore)) return { ok: false, code: "PATH_BLOCKED", message: "Path crosses blocked ground, terrain, or bases." };
@@ -189,7 +194,7 @@ export function validateDisengage(state, playerId, unitId, leadingModelId, path,
     key: "unit.speed",
     baseValue: unit.speed
   }).value;
-  const travelCost = pathTravelCost(path, state.board.terrain);
+  const travelCost = getMovementCost(state, path);
   if (travelCost - modifiedSpeed > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only move ${modifiedSpeed}" (difficult terrain costs extra movement).` };
   const ignore = new Set(unit.modelIds);
   if (pathBlockedForCircle(path, unit.base.radiusInches, state, ignore)) return { ok: false, code: "PATH_BLOCKED", message: "Path crosses blocked ground, terrain, or bases." };

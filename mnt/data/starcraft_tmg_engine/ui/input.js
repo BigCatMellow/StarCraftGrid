@@ -1,6 +1,7 @@
 import { autoArrangeModels } from "../engine/coherency.js";
 
 export function bindInputHandlers(store, controller) {
+  document.getElementById("gridModeBtn").addEventListener("click", controller.onToggleGridMode);
   document.getElementById("newGameBtn").addEventListener("click", controller.onNewGame);
   document.getElementById("passBtn").addEventListener("click", controller.onPass);
 }

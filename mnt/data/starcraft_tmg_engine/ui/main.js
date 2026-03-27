@@ -7,6 +7,7 @@ import { autoArrangeModels } from "../engine/coherency.js";
 import { performBotTurn } from "../ai/bot.js";
 import { screenToBoardPoint } from "./board.js";
 import { getTacticalCard } from "../data/tactical_cards.js";
+import { snapPointToGrid } from "../engine/geometry.js";
 
 const DEFAULT_SETUP = {
   missionId: "take_and_hold",
@@ -28,7 +29,8 @@ const DEFAULT_SETUP = {
     { id: "swarm_zergling_t2", templateId: "zergling_t2" }
   ],
   tacticalCardsA: ["barracks_proxy", "academy", "orbital_command"],
-  tacticalCardsB: ["lair", "evolution_chamber", "roach_warren", "malignant_creep"]
+  tacticalCardsB: ["lair", "evolution_chamber", "roach_warren", "malignant_creep"],
+  rules: { gridMode: true }
 };
 
 function createStore(initialState) {
@@ -89,6 +91,7 @@ function getSelectedUnit(state) {
 
 function getModeText() {
   if (uiState.lastError) return uiState.lastError;
+  if (store?.getState().rules?.gridMode) return "Grid Mode active: 1 square = 1 inch. Destinations snap to the grid.";
   if (uiState.mode === "deploy") return "Deploy mode: click to place the leader. Deep strike units may deploy away from board edges.";
   if (uiState.mode === "move") return "Move mode: click on the board to choose the leader's destination.";
   if (uiState.mode === "disengage") return "Disengage mode: click on the board to choose the fallback position.";
@@ -324,14 +327,20 @@ function canDeepStrike(unit) {
   return unit.abilities?.includes("deep_strike");
 }
 
+function maybeSnapPoint(state, point) {
+  if (!state.rules?.gridMode) return point;
+  return snapPointToGrid(point, state.board);
+}
+
 function handleBoardClick(point) {
   const state = store.getState();
+  const snappedPoint = maybeSnapPoint(state, point);
   const unit = getSelectedUnit(state);
   if (!unit || state.activePlayer !== "playerA") return;
 
   if (uiState.mode === "deploy") {
-    const entryPoint = canDeepStrike(unit) ? point : computeDeployEntryPoint(state, point);
-    const path = canDeepStrike(unit) ? [entryPoint, entryPoint] : [entryPoint, point];
+    const entryPoint = canDeepStrike(unit) ? snappedPoint : computeDeployEntryPoint(state, snappedPoint);
+    const path = canDeepStrike(unit) ? [entryPoint, entryPoint] : [entryPoint, snappedPoint];
     const result = store.dispatch({
       type: "DEPLOY_UNIT",
       payload: {
@@ -340,7 +349,7 @@ function handleBoardClick(point) {
         leadingModelId: unit.leadingModelId,
         entryPoint,
         path,
-        modelPlacements: autoArrangeModels(state, unit.id, point)
+        modelPlacements: autoArrangeModels(state, unit.id, snappedPoint)
       }
     });
     if (!result.ok) return showError(result.message);
@@ -351,7 +360,7 @@ function handleBoardClick(point) {
 
   if (uiState.mode === "move") {
     const leader = unit.models[unit.leadingModelId];
-    const path = [{ x: leader.x, y: leader.y }, point];
+    const path = [{ x: leader.x, y: leader.y }, snappedPoint];
     const result = store.dispatch({
       type: "MOVE_UNIT",
       payload: {
@@ -359,7 +368,7 @@ function handleBoardClick(point) {
         unitId: unit.id,
         leadingModelId: unit.leadingModelId,
         path,
-        modelPlacements: autoArrangeModels(state, unit.id, point)
+        modelPlacements: autoArrangeModels(state, unit.id, snappedPoint)
       }
     });
     if (!result.ok) return showError(result.message);
@@ -370,7 +379,7 @@ function handleBoardClick(point) {
 
   if (uiState.mode === "run") {
     const leader = unit.models[unit.leadingModelId];
-    const path = [{ x: leader.x, y: leader.y }, point];
+    const path = [{ x: leader.x, y: leader.y }, snappedPoint];
     const result = store.dispatch({
       type: "RUN_UNIT",
       payload: {
@@ -378,7 +387,7 @@ function handleBoardClick(point) {
         unitId: unit.id,
         leadingModelId: unit.leadingModelId,
         path,
-        modelPlacements: autoArrangeModels(state, unit.id, point)
+        modelPlacements: autoArrangeModels(state, unit.id, snappedPoint)
       }
     });
     if (!result.ok) return showError(result.message);
@@ -389,7 +398,7 @@ function handleBoardClick(point) {
 
   if (uiState.mode === "disengage") {
     const leader = unit.models[unit.leadingModelId];
-    const path = [{ x: leader.x, y: leader.y }, point];
+    const path = [{ x: leader.x, y: leader.y }, snappedPoint];
     const result = store.dispatch({
       type: "DISENGAGE_UNIT",
       payload: {
@@ -397,7 +406,7 @@ function handleBoardClick(point) {
         unitId: unit.id,
         leadingModelId: unit.leadingModelId,
         path,
-        modelPlacements: autoArrangeModels(state, unit.id, point)
+        modelPlacements: autoArrangeModels(state, unit.id, snappedPoint)
       }
     });
     if (!result.ok) return showError(result.message);
@@ -478,6 +487,12 @@ function resetGame() {
 function controller() {
   return {
     onNewGame: resetGame,
+    onToggleGridMode: () => {
+      const state = store.getState();
+      state.rules.gridMode = !state.rules.gridMode;
+      document.getElementById("gridModeBtn").textContent = `Grid Mode: ${state.rules.gridMode ? "On" : "Off"}`;
+      rerender();
+    },
     onPass: () => {
       const result = store.dispatch({ type: "PASS_PHASE", payload: { playerId: "playerA" } });
       if (!result.ok) showError(result.message);
@@ -488,17 +503,18 @@ function controller() {
 
 function updatePreviewFromPoint(point) {
   const state = store.getState();
+  const snappedPoint = maybeSnapPoint(state, point);
   const unit = getSelectedUnit(state);
   if (!unit) return;
   if (uiState.mode === "deploy") {
-    const entryPoint = canDeepStrike(unit) ? point : computeDeployEntryPoint(state, point);
-    uiState.previewPath = { path: canDeepStrike(unit) ? [entryPoint, entryPoint] : [entryPoint, point], state };
-    uiState.previewUnit = { unitId: unit.id, leader: point, placements: autoArrangeModels(state, unit.id, point) };
+    const entryPoint = canDeepStrike(unit) ? snappedPoint : computeDeployEntryPoint(state, snappedPoint);
+    uiState.previewPath = { path: canDeepStrike(unit) ? [entryPoint, entryPoint] : [entryPoint, snappedPoint], state };
+    uiState.previewUnit = { unitId: unit.id, leader: snappedPoint, placements: autoArrangeModels(state, unit.id, snappedPoint) };
   }
   if (uiState.mode === "move" || uiState.mode === "disengage" || uiState.mode === "run") {
     const leader = unit.models[unit.leadingModelId];
-    uiState.previewPath = { path: [{ x: leader.x, y: leader.y }, point], state };
-    uiState.previewUnit = { unitId: unit.id, leader: point, placements: autoArrangeModels(state, unit.id, point) };
+    uiState.previewPath = { path: [{ x: leader.x, y: leader.y }, snappedPoint], state };
+    uiState.previewUnit = { unitId: unit.id, leader: snappedPoint, placements: autoArrangeModels(state, unit.id, snappedPoint) };
   }
 }
 
@@ -521,6 +537,7 @@ function wirePreviewEvents() {
 function init() {
   store = createStore(buildInitialState());
   bindInputHandlers(store, controller());
+  document.getElementById("gridModeBtn").textContent = `Grid Mode: ${store.getState().rules.gridMode ? "On" : "Off"}`;
   uiState.lastSeenLogCount = store.getState().log.length;
   store.subscribe((state) => {
     publishLogNotifications(state);

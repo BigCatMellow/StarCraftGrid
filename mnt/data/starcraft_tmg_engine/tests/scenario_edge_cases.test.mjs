@@ -135,3 +135,37 @@ test('deep strike denies deployment within 6 inches of enemy models', () => {
   assert.equal(result.ok, false);
   assert.equal(result.code, 'DEEP_STRIKE_DENIED');
 });
+
+test('grid mode measures movement in squares using grid distance', () => {
+  const state = createInitialGameState({
+    missionId: 'take_and_hold',
+    deploymentId: 'crossfire',
+    armyA: [{ id: 'blue_marines_1', templateId: 'marine_squad' }],
+    armyB: [{ id: 'red_zealots_1', templateId: 'zealot_squad' }],
+    rules: { gridMode: true },
+    firstPlayerMarkerHolder: 'playerA'
+  });
+  placeUnitAt(state, 'blue_marines_1', 5, 5);
+  placeUnitAt(state, 'red_zealots_1', 30, 30);
+  state.phase = 'movement';
+  state.activePlayer = 'playerA';
+
+  const valid = validateMove(
+    state,
+    'playerA',
+    'blue_marines_1',
+    state.units.blue_marines_1.leadingModelId,
+    [{ x: 5, y: 5 }, { x: 11, y: 11 }] // grid distance 6
+  );
+  assert.equal(valid.ok, true);
+
+  const tooFar = validateMove(
+    state,
+    'playerA',
+    'blue_marines_1',
+    state.units.blue_marines_1.leadingModelId,
+    [{ x: 5, y: 5 }, { x: 12, y: 12 }] // grid distance 7
+  );
+  assert.equal(tooFar.ok, false);
+  assert.equal(tooFar.code, 'TOO_FAR');
+});

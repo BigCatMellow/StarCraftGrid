@@ -26,6 +26,7 @@ This build now supports full turn cadence through **Movement → Assault → Com
 - effect/modifier engine with timing hooks, duration tracking, and priority-based modifier stacking
 - tactical cards playable from the UI during valid phases (including faction package cards)
 - terrain interaction: impassable blockers, ranged cover defense bonuses, and difficult-terrain movement cost through cover
+- optional Grid Mode for quick practice (1 square = 1 inch movement, snapped destinations)
 - validation harness tests for matchup sanity, mission scoring cadence, and edge-case scenarios
 
 ## Known limitations / still in progress

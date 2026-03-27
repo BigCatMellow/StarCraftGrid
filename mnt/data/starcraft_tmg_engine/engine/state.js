@@ -25,6 +25,7 @@ export function createInitialGameState({
   armyB,
   tacticalCardsA = ["focused_fire", "rapid_relocation"],
   tacticalCardsB = ["focused_fire", "rapid_relocation"],
+  rules = { gridMode: false },
   firstPlayerMarkerHolder = "playerA"
 }) {
   const mission = getMission(missionId);
@@ -53,6 +54,9 @@ export function createInitialGameState({
       widthInches: deployment.boardWidthInches,
       heightInches: deployment.boardHeightInches,
       terrain: createTerrain()
+    },
+    rules: {
+      gridMode: Boolean(rules?.gridMode)
     },
     players: {
       playerA: {

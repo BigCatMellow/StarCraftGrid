@@ -2,6 +2,17 @@ export function distance(a, b) {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
+export function gridDistance(a, b) {
+  return Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+}
+
+export function snapPointToGrid(point, board) {
+  return {
+    x: clamp(Math.round(point.x), 0, board.widthInches),
+    y: clamp(Math.round(point.y), 0, board.heightInches)
+  };
+}
+
 export function pathLength(path = []) {
   if (!path || path.length < 2) return 0;
   let total = 0;

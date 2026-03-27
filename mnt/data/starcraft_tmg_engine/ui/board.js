@@ -1,5 +1,5 @@
 import { getObjectiveControlSnapshot } from "../engine/objectives.js";
-import { pathLength, pathTravelCost } from "../engine/geometry.js";
+import { pathLength, pathTravelCost, gridDistance } from "../engine/geometry.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -60,16 +60,22 @@ function addPathPreview(svg, preview) {
 
   const totalDistance = pathLength(preview.path);
   if (totalDistance <= 0.01) return;
-  const movementCost = preview.state?.board?.terrain ? pathTravelCost(preview.path, preview.state.board.terrain) : totalDistance;
+  const movementCost = preview.state?.rules?.gridMode
+    ? gridDistance(preview.path[0], preview.path[preview.path.length - 1])
+    : preview.state?.board?.terrain
+      ? pathTravelCost(preview.path, preview.state.board.terrain)
+      : totalDistance;
   const start = preview.path[0];
   const end = preview.path[preview.path.length - 1];
   const labelX = (start.x + end.x) / 2;
   const labelY = (start.y + end.y) / 2 - 0.45;
 
   const label = createSvgElement("text", { x: labelX, y: labelY, class: "path-preview-label" });
-  label.textContent = movementCost - totalDistance > 0.05
-    ? `${totalDistance.toFixed(1)}" (cost ${movementCost.toFixed(1)}")`
-    : `${totalDistance.toFixed(1)}"`;
+  label.textContent = preview.state?.rules?.gridMode
+    ? `${movementCost.toFixed(0)} sq`
+    : movementCost - totalDistance > 0.05
+      ? `${totalDistance.toFixed(1)}" (cost ${movementCost.toFixed(1)}")`
+      : `${totalDistance.toFixed(1)}"`;
   svg.appendChild(label);
 }
 
