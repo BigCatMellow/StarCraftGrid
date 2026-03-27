@@ -481,7 +481,71 @@ function resetGame() {
   uiState.selectedUnitId = null;
   cancelCurrentInteraction(uiState);
   const nextState = buildInitialState();
+  uiState.lastSeenLogCount = nextState.log.length;
   store.replaceState(nextState);
+}
+
+function sanitizeSaveFilenamePart(value) {
+  return value.replace(/[^a-z0-9_-]/gi, "_");
+}
+
+function exportSaveFile() {
+  const state = store.getState();
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    state
+  };
+  const content = JSON.stringify(payload, null, 2);
+  const blob = new Blob([content], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const missionPart = sanitizeSaveFilenamePart(state.mission.id ?? "mission");
+  link.href = url;
+  link.download = `starcraft-grid-save-${missionPart}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  enqueueNotification("Save exported.", "success");
+}
+
+function isValidImportedState(nextState) {
+  return Boolean(
+    nextState &&
+    typeof nextState === "object" &&
+    nextState.board &&
+    nextState.players &&
+    nextState.units &&
+    Array.isArray(nextState.turnOrder)
+  );
+}
+
+function importSaveFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result));
+      const importedState = parsed?.state ?? parsed;
+      if (!isValidImportedState(importedState)) {
+        showError("Invalid save file.");
+        return;
+      }
+      uiState.selectedUnitId = null;
+      cancelCurrentInteraction(uiState);
+      uiState.lastSeenLogCount = importedState.log?.length ?? 0;
+      store.replaceState(importedState);
+      document.getElementById("gridModeBtn").textContent = `Grid Mode: ${store.getState().rules.gridMode ? "On" : "Off"}`;
+      enqueueNotification("Save loaded.", "success");
+    } catch (_error) {
+      showError("Could not read this save file.");
+    }
+  };
+  reader.onerror = () => {
+    showError("Failed to load save file.");
+  };
+  reader.readAsText(file);
 }
 
 function controller() {
@@ -492,6 +556,17 @@ function controller() {
       state.rules.gridMode = !state.rules.gridMode;
       document.getElementById("gridModeBtn").textContent = `Grid Mode: ${state.rules.gridMode ? "On" : "Off"}`;
       rerender();
+    },
+    onExportSave: exportSaveFile,
+    onImportSave: () => {
+      const input = document.getElementById("importFileInput");
+      if (!input) return;
+      input.value = "";
+      input.click();
+    },
+    onImportFileSelected: (event) => {
+      const input = event.target;
+      importSaveFile(input?.files?.[0]);
     },
     onPass: () => {
       const result = store.dispatch({ type: "PASS_PHASE", payload: { playerId: "playerA" } });
