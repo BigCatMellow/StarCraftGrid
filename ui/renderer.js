@@ -2,11 +2,13 @@ import { renderTopPanel, renderReserveTray, renderSelectedUnit, renderActionButt
 import { renderBoard } from "./board.js";
 
 export function renderAll(state, uiState, handlers) {
+  const actionButtons = typeof handlers.buildActionButtons === "function" ? handlers.buildActionButtons() : [];
+  const cardButtons = typeof handlers.buildCardButtons === "function" ? handlers.buildCardButtons() : [];
   renderTopPanel(state);
   renderReserveTray(state, uiState, handlers.onUnitSelect);
   renderSelectedUnit(state, uiState);
-  renderActionButtons(handlers.buildActionButtons());
-  renderTacticalCards(state, handlers.buildCardButtons());
+  renderActionButtons(actionButtons);
+  renderTacticalCards(state, cardButtons);
   renderCombatQueue(state);
   renderLog(state);
   renderBoard(state, uiState, handlers);

@@ -13,6 +13,13 @@ function boardToSvgClass(playerId) {
   return playerId === "playerA" ? "playerA" : "playerB";
 }
 
+function snapModelToGridSquare(model) {
+  return {
+    x: Math.round(model.x) - 0.5,
+    y: Math.round(model.y) - 0.5
+  };
+}
+
 function addGrid(svg, width, height) {
   for (let x = 0; x <= width; x += 1) {
     svg.appendChild(createSvgElement("line", { x1: x, y1: 0, x2: x, y2: height, class: x === width / 2 ? "board-centerline" : "board-grid-line" }));
@@ -116,11 +123,24 @@ function addPreviewUnit(svg, state, uiState) {
 }
 
 function addUnits(svg, state, uiState, onModelClick) {
+  const gridMode = Boolean(state.rules?.gridMode);
   for (const unit of Object.values(state.units)) {
     if (unit.status.location !== "battlefield") continue;
+    const leaderModel = unit.models[unit.leadingModelId];
+    if (gridMode && leaderModel?.alive && leaderModel.x != null && leaderModel.y != null) {
+      const leaderSquare = snapModelToGridSquare(leaderModel);
+      svg.appendChild(createSvgElement("rect", {
+        x: leaderSquare.x - 3,
+        y: leaderSquare.y - 3,
+        width: 7,
+        height: 7,
+        class: "coherency-zone"
+      }));
+    }
     for (const modelId of unit.modelIds) {
       const model = unit.models[modelId];
       if (!model.alive || model.x == null || model.y == null) continue;
+      const square = snapModelToGridSquare(model);
       if (unit.tags.includes("Ground")) {
         svg.appendChild(createSvgElement("circle", {
           cx: model.x,
@@ -138,11 +158,30 @@ function addUnits(svg, state, uiState, onModelClick) {
         "data-model-id": modelId,
         "data-owner": unit.owner
       });
-      circle.addEventListener("click", event => {
+      const squareIcon = createSvgElement("rect", {
+        x: square.x,
+        y: square.y,
+        width: 1,
+        height: 1,
+        rx: 0.12,
+        ry: 0.12,
+        class: `model-square ${boardToSvgClass(unit.owner)} ${modelId === unit.leadingModelId ? "leader" : ""}`,
+        "data-unit-id": unit.id,
+        "data-model-id": modelId,
+        "data-owner": unit.owner
+      });
+      const clickableIcon = gridMode ? squareIcon : circle;
+      clickableIcon.addEventListener("click", event => {
         event.stopPropagation();
         onModelClick(unit.id, modelId);
       });
-      svg.appendChild(circle);
+      svg.appendChild(clickableIcon);
+      if (gridMode) {
+        const text = createSvgElement("text", { x: square.x + 0.5, y: square.y + 0.5, class: "model-text" });
+        text.textContent = `${modelId === unit.leadingModelId ? "L" : ""}${unit.currentSupplyValue}`;
+        svg.appendChild(text);
+        continue;
+      }
       const text = createSvgElement("text", { x: model.x, y: model.y, class: "model-text" });
       text.textContent = `${modelId === unit.leadingModelId ? "L" : ""}${unit.currentSupplyValue}`;
       svg.appendChild(text);
@@ -155,7 +194,9 @@ export function screenToBoardPoint(svg, clientX, clientY) {
   point.x = clientX;
   point.y = clientY;
   const transformed = point.matrixTransform(svg.getScreenCTM().inverse());
-  return { x: Math.max(0, Math.min(36, transformed.x)), y: Math.max(0, Math.min(36, transformed.y)) };
+  const width = Number(svg.dataset.boardWidth ?? 36);
+  const height = Number(svg.dataset.boardHeight ?? 36);
+  return { x: Math.max(0, Math.min(width, transformed.x)), y: Math.max(0, Math.min(height, transformed.y)) };
 }
 
 export function renderLegalOverlay() {}
@@ -164,6 +205,9 @@ export function renderUnitGhost() {}
 
 export function renderBoard(state, uiState, handlers) {
   const svg = document.getElementById("battlefield");
+  svg.setAttribute("viewBox", `0 0 ${state.board.widthInches} ${state.board.heightInches}`);
+  svg.dataset.boardWidth = String(state.board.widthInches);
+  svg.dataset.boardHeight = String(state.board.heightInches);
   svg.innerHTML = "";
   const controlSnapshot = getObjectiveControlSnapshot(state);
   addZones(svg, state);
