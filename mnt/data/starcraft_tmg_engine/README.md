@@ -52,7 +52,7 @@ This build is a rules-first rewrite of the uploaded grid mockup.
 Build out card timing + tactical depth next:
 
 1. card timing hooks
-2. event-driven modifier pipeline (basic event-expiry hooks now in place)
+2. event-driven modifier pipeline
 3. melee pile-in/consolidation movement
 4. advanced charge reactions/overwatch (basic overwatch response hook now in place)
 5. faction + tactical card content

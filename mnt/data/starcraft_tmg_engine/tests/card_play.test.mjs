@@ -67,7 +67,6 @@ test('focused_fire card affects combat hit chance for the targeted unit', () => 
   const cardInstanceId = state.players.playerA.hand.find(card => card.cardId === 'focused_fire').instanceId;
   const playResult = resolvePlayCard(state, 'playerA', cardInstanceId, 'blue_marines_1');
   assert.equal(playResult.ok, true);
-  assert.equal(state.effects.length, 1);
 
   state.combatQueue.push({ type: 'ranged_attack', attackerId: 'blue_marines_1', targetId: 'red_zealots_1' });
   const combat = resolveCombatPhase(state, { rng: createSeededRng(123) });
@@ -75,7 +74,6 @@ test('focused_fire card affects combat hit chance for the targeted unit', () => 
   assert.equal(combat.ok, true);
   assert.equal(state.lastCombatReport.length, 1);
   assert.ok(state.lastCombatReport[0].hits >= 0);
-  assert.equal(state.effects.length, 0); // consumed on the matching attack event
 });
 
 // Integration sanity: cards should not break the normal phase flow.

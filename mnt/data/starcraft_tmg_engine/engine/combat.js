@@ -1,7 +1,7 @@
 import { appendLog } from "./state.js";
 import { distance, pointInBoard, circleOverlapsTerrain, circleOverlapsCircle } from "./geometry.js";
 import { recomputeUnitCurrentSupply, refreshAllSupply } from "./supply.js";
-import { getModifiedValue, onEvent } from "./effects.js";
+import { getModifiedValue } from "./effects.js";
 import { refreshEngagement } from "./movement.js";
 
 const MELEE_REACH_INCHES = 1.5;
@@ -307,10 +307,7 @@ export function resolveCombatPhase(state, { rng = Math.random } = {}) {
 
   for (const declaration of declarations) {
     const event = resolveSingleAttack(state, declaration, rng);
-    if (event) {
-      events.push(event);
-      onEvent(state, event);
-    }
+    if (event) events.push(event);
   }
 
   state.lastCombatReport = events.map(event => event.payload);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createInitialGameState } from '../engine/state.js';
-import { addEffect, getModifiedValue, onEvent, onPhaseStart, onRoundStart } from '../engine/effects.js';
+import { addEffect, getModifiedValue, onPhaseStart, onRoundStart } from '../engine/effects.js';
 import { beginRound } from '../engine/phases.js';
 import { advanceToNextPhase } from '../engine/phases.js';
 import { validateDeclareRangedAttack } from '../engine/assault.js';
@@ -93,20 +93,4 @@ test('assault ranged declaration can be blocked by an effect modifier', () => {
   const validation = validateDeclareRangedAttack(state, 'playerA', 'blue_marines_1');
   assert.equal(validation.ok, false);
   assert.equal(validation.code, 'RANGED_BLOCKED');
-});
-
-test('event duration effects expire after matching combat event', () => {
-  const state = buildState();
-  addEffect(state, {
-    target: { scope: 'unit', unitId: 'blue_marines_1' },
-    timings: ['combat_resolve_attack'],
-    modifiers: [{ key: 'weapon.hitTarget', operation: 'add', value: -1 }],
-    duration: { type: 'events', eventType: 'combat_attack_resolved', unitRole: 'attacker', remaining: 1 }
-  });
-
-  assert.equal(state.effects.length, 1);
-  onEvent(state, { type: 'combat_attack_resolved', payload: { attackerId: 'red_zealots_1', targetId: 'blue_marines_1' } });
-  assert.equal(state.effects.length, 1);
-  onEvent(state, { type: 'combat_attack_resolved', payload: { attackerId: 'blue_marines_1', targetId: 'red_zealots_1' } });
-  assert.equal(state.effects.length, 0);
 });

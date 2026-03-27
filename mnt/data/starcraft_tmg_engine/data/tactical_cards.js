@@ -9,7 +9,7 @@ export const TACTICAL_CARDS = {
       modifiers: [
         { key: 'weapon.hitTarget', operation: 'add', value: -1, priority: 0 }
       ],
-      duration: { type: 'events', eventType: 'combat_attack_resolved', unitRole: 'attacker', remaining: 1 }
+      duration: { type: 'rounds', remaining: 1 }
     }
   },
   rapid_relocation: {
