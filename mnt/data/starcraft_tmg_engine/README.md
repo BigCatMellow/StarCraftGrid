@@ -46,6 +46,11 @@ This build now supports full turn cadence through **Movement → Assault → Com
 - movement uses a straight-line path in this build
 - non-leading models are auto-set around the leading model
 
+### Grid Mode policy
+
+- Grid Mode is a **practice-only variant** for quick playtests.
+- Baseline balance and rules validation should be treated as continuous-inch mode first.
+
 ## Default skirmish setup
 
 - Terran package: Jim Raynor, Marine T2, Marauder T1 ×3, Medic T1 with cards Barracks (Proxy), Academy, Orbital Command.
@@ -67,3 +72,5 @@ Build out card timing + tactical depth next:
 3. melee pile-in/consolidation movement
 4. advanced charge reactions/overwatch (basic overwatch response hook now in place)
 5. faction + tactical card content
+
+For the maintained backlog and execution order, see `MASTER_TODO.md`.

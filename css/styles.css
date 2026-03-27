@@ -289,6 +289,16 @@ button { font: inherit; }
 .model.playerA { fill: #6c98ff; stroke: #c7d7ff; }
 .model.playerB { fill: #df7a7a; stroke: #ffd0d0; }
 .model.leader { stroke-width: .12; }
+.model-square { stroke-width: .08; }
+.model-square.playerA { fill: rgba(108, 152, 255, 0.9); stroke: #c7d7ff; }
+.model-square.playerB { fill: rgba(223, 122, 122, 0.9); stroke: #ffd0d0; }
+.model-square.leader { stroke: var(--gold); stroke-width: .12; }
+.coherency-zone {
+  fill: rgba(121, 217, 154, 0.05);
+  stroke: rgba(121, 217, 154, 0.65);
+  stroke-width: .08;
+  stroke-dasharray: .2 .15;
+}
 .model-text { fill: #fff; font-size: .48px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 
 .objective-control-list {
