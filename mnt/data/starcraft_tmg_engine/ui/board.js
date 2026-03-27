@@ -1,3 +1,6 @@
+import { getObjectiveControlSnapshot } from "../engine/objectives.js";
+import { pathLength, pathTravelCost, gridDistance } from "../engine/geometry.js";
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function createSvgElement(name, attrs = {}) {
@@ -38,10 +41,15 @@ function addTerrain(svg, terrain) {
   }
 }
 
-function addObjectives(svg, objectives) {
+function addObjectives(svg, objectives, controlSnapshot) {
   for (const objective of objectives) {
+    const result = controlSnapshot[objective.id];
+    let ringClass = "objective-ring neutral";
+    if (result?.contested) ringClass = "objective-ring contested";
+    if (result?.controller === "playerA") ringClass = "objective-ring playerA";
+    if (result?.controller === "playerB") ringClass = "objective-ring playerB";
     svg.appendChild(createSvgElement("circle", { cx: objective.x, cy: objective.y, r: 0.75, class: "objective-marker" }));
-    svg.appendChild(createSvgElement("circle", { cx: objective.x, cy: objective.y, r: 2, class: "objective-ring" }));
+    svg.appendChild(createSvgElement("circle", { cx: objective.x, cy: objective.y, r: 2, class: ringClass }));
   }
 }
 
@@ -49,6 +57,26 @@ function addPathPreview(svg, preview) {
   if (!preview?.path || preview.path.length < 2) return;
   const d = preview.path.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
   svg.appendChild(createSvgElement("path", { d, class: "path-preview" }));
+
+  const totalDistance = pathLength(preview.path);
+  if (totalDistance <= 0.01) return;
+  const movementCost = preview.state?.rules?.gridMode
+    ? gridDistance(preview.path[0], preview.path[preview.path.length - 1])
+    : preview.state?.board?.terrain
+      ? pathTravelCost(preview.path, preview.state.board.terrain)
+      : totalDistance;
+  const start = preview.path[0];
+  const end = preview.path[preview.path.length - 1];
+  const labelX = (start.x + end.x) / 2;
+  const labelY = (start.y + end.y) / 2 - 0.45;
+
+  const label = createSvgElement("text", { x: labelX, y: labelY, class: "path-preview-label" });
+  label.textContent = preview.state?.rules?.gridMode
+    ? `${movementCost.toFixed(0)} sq`
+    : movementCost - totalDistance > 0.05
+      ? `${totalDistance.toFixed(1)}" (cost ${movementCost.toFixed(1)}")`
+      : `${totalDistance.toFixed(1)}"`;
+  svg.appendChild(label);
 }
 
 function addSelection(svg, state, uiState) {
@@ -137,10 +165,11 @@ export function renderUnitGhost() {}
 export function renderBoard(state, uiState, handlers) {
   const svg = document.getElementById("battlefield");
   svg.innerHTML = "";
+  const controlSnapshot = getObjectiveControlSnapshot(state);
   addZones(svg, state);
   addGrid(svg, state.board.widthInches, state.board.heightInches);
   addTerrain(svg, state.board.terrain);
-  addObjectives(svg, state.deployment.missionMarkers);
+  addObjectives(svg, state.deployment.missionMarkers, controlSnapshot);
   addPathPreview(svg, uiState.previewPath);
   addSelection(svg, state, uiState);
   addPreviewUnit(svg, state, uiState);

@@ -1,5 +1,7 @@
 export function getSupplyPoolForRound(mission, round) {
-  if (round >= mission.roundLimit) return Infinity;
+  const roundLimit = mission.pacing?.roundLimit ?? mission.roundLimit;
+  const unlimitedFinalRound = mission.pacing?.finalRoundUnlimitedSupply ?? true;
+  if (unlimitedFinalRound && round >= roundLimit) return Infinity;
   return mission.startingSupply + ((round - 1) * mission.supplyEscalation);
 }
 
