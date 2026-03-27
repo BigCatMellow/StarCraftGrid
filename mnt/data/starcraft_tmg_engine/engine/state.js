@@ -11,6 +11,13 @@ function createTerrain() {
   ];
 }
 
+function createDefaultHand(playerId) {
+  return [
+    { instanceId: `${playerId}_card_focused_fire_r1`, cardId: "focused_fire" },
+    { instanceId: `${playerId}_card_rapid_relocation_r1`, cardId: "rapid_relocation" }
+  ];
+}
+
 export function createInitialGameState({ missionId, deploymentId, armyA, armyB, firstPlayerMarkerHolder = "playerA" }) {
   const mission = getMission(missionId);
   const deployment = getDeployment(deploymentId);
@@ -46,7 +53,9 @@ export function createInitialGameState({ missionId, deploymentId, armyA, armyB, 
         battlefieldUnitIds: [],
         supplyPool: mission.startingSupply,
         availableSupply: mission.startingSupply,
-        hasPassedThisPhase: false
+        hasPassedThisPhase: false,
+        hand: createDefaultHand("playerA"),
+        discardPile: []
       },
       playerB: {
         vp: 0,
@@ -54,10 +63,18 @@ export function createInitialGameState({ missionId, deploymentId, armyA, armyB, 
         battlefieldUnitIds: [],
         supplyPool: mission.startingSupply,
         availableSupply: mission.startingSupply,
-        hasPassedThisPhase: false
+        hasPassedThisPhase: false,
+        hand: createDefaultHand("playerB"),
+        discardPile: []
       }
     },
     units,
+    combatQueue: [],
+    effects: [],
+    lastCombatReport: [],
+    lastRoundSummary: null,
+    objectiveControl: Object.fromEntries(deployment.missionMarkers.map(marker => [marker.id, { objectiveId: marker.id, controller: null, playerASupply: 0, playerBSupply: 0, contested: false }])),
+    winner: null,
     firstPlayerMarkerHolder,
     activePlayer: firstPlayerMarkerHolder,
     log: [

@@ -1,7 +1,7 @@
 import { createInitialGameState } from "../engine/state.js";
 import { beginGame } from "../engine/phases.js";
 import { dispatch as engineDispatch } from "../engine/reducer.js";
-import { bindInputHandlers, beginMoveInteraction, beginDeployInteraction, beginDisengageInteraction, cancelCurrentInteraction } from "./input.js";
+import { bindInputHandlers, beginMoveInteraction, beginDeployInteraction, beginDisengageInteraction, beginRunInteraction, beginDeclareRangedInteraction, beginDeclareChargeInteraction, cancelCurrentInteraction } from "./input.js";
 import { renderAll } from "./renderer.js";
 import { autoArrangeModels } from "../engine/coherency.js";
 import { performBotTurn } from "../ai/bot.js";
@@ -82,6 +82,9 @@ function getModeText() {
   if (uiState.mode === "deploy") return "Deploy mode: click on the board to choose the leader's final position.";
   if (uiState.mode === "move") return "Move mode: click on the board to choose the leader's destination.";
   if (uiState.mode === "disengage") return "Disengage mode: click on the board to choose the fallback position.";
+  if (uiState.mode === "run") return "Run mode: click on the board to choose the leader's destination.";
+  if (uiState.mode === "declare_ranged") return "Ranged declaration mode: click an enemy model to choose your target.";
+  if (uiState.mode === "declare_charge") return "Charge declaration mode: click an enemy model within 8\".";
   return "Select a reserve or battlefield unit, then choose an action.";
 }
 
@@ -89,7 +92,7 @@ function rerender() {
   const handlers = {
     onUnitSelect: selectUnit,
     onBoardClick: handleBoardClick,
-    onModelClick: (unitId) => selectUnit(unitId),
+    onModelClick: handleModelClick,
     buildActionButtons,
     getModeText
   };
@@ -129,9 +132,18 @@ function buildActionButtons() {
 
   if (state.activePlayer !== "playerA") return buttons;
   if (unit.owner !== "playerA") return buttons;
-  if (unit.status.movementActivated) return buttons;
 
-  if (unit.status.location === "reserves") {
+  const activatedInPhase = state.phase === "movement"
+    ? unit.status.movementActivated
+    : state.phase === "assault"
+      ? unit.status.assaultActivated
+      : state.phase === "combat"
+        ? unit.status.combatActivated
+        : false;
+
+  if (activatedInPhase) return buttons;
+
+  if (state.phase === "movement" && unit.status.location === "reserves") {
     buttons.unshift(actionButton("Deploy", "primary", () => {
       beginDeployInteraction(state, uiState, unit.id);
       rerender();
@@ -144,15 +156,37 @@ function buildActionButtons() {
     if (!result.ok) showError(result.message);
   }));
 
-  buttons.unshift(actionButton("Move", "primary", () => {
-    beginMoveInteraction(state, uiState, unit.id);
-    rerender();
-  }, unit.status.engaged));
+  if (state.phase === "movement") {
+    buttons.unshift(actionButton("Move", "primary", () => {
+      beginMoveInteraction(state, uiState, unit.id);
+      rerender();
+    }, unit.status.engaged));
 
-  buttons.unshift(actionButton("Disengage", "warn", () => {
-    beginDisengageInteraction(state, uiState, unit.id);
-    rerender();
-  }, !unit.status.engaged));
+    buttons.unshift(actionButton("Disengage", "warn", () => {
+      beginDisengageInteraction(state, uiState, unit.id);
+      rerender();
+    }, !unit.status.engaged));
+
+    return buttons;
+  }
+
+  if (state.phase === "assault") {
+    buttons.unshift(actionButton("Charge", "warn", () => {
+      beginDeclareChargeInteraction(uiState);
+      rerender();
+    }, !(unit.meleeWeapons?.length) || unit.status.cannotChargeThisAssault));
+
+    buttons.unshift(actionButton("Ranged", "secondary", () => {
+      beginDeclareRangedInteraction(uiState);
+      rerender();
+    }, !(unit.rangedWeapons?.length) || unit.status.cannotRangedAttackThisAssault));
+
+    buttons.unshift(actionButton("Run", "primary", () => {
+      beginRunInteraction(state, uiState, unit.id);
+      rerender();
+    }, unit.status.engaged));
+    return buttons;
+  }
 
   return buttons;
 }
@@ -209,6 +243,25 @@ function handleBoardClick(point) {
     return;
   }
 
+  if (uiState.mode === "run") {
+    const leader = unit.models[unit.leadingModelId];
+    const path = [{ x: leader.x, y: leader.y }, point];
+    const result = store.dispatch({
+      type: "RUN_UNIT",
+      payload: {
+        playerId: "playerA",
+        unitId: unit.id,
+        leadingModelId: unit.leadingModelId,
+        path,
+        modelPlacements: autoArrangeModels(state, unit.id, point)
+      }
+    });
+    if (!result.ok) return showError(result.message);
+    cancelCurrentInteraction(uiState);
+    rerender();
+    return;
+  }
+
   if (uiState.mode === "disengage") {
     const leader = unit.models[unit.leadingModelId];
     const path = [{ x: leader.x, y: leader.y }, point];
@@ -228,10 +281,56 @@ function handleBoardClick(point) {
   }
 }
 
+
+function handleModelClick(unitId) {
+  const state = store.getState();
+  const selected = getSelectedUnit(state);
+  const clickedUnit = state.units[unitId];
+
+  if (uiState.mode === "declare_ranged" && selected && clickedUnit && selected.owner === "playerA" && clickedUnit.owner === "playerB") {
+    const result = store.dispatch({
+      type: "DECLARE_RANGED_ATTACK",
+      payload: {
+        playerId: "playerA",
+        unitId: selected.id,
+        targetId: clickedUnit.id
+      }
+    });
+    if (!result.ok) {
+      showError(result.message);
+      return;
+    }
+    cancelCurrentInteraction(uiState);
+    rerender();
+    return;
+  }
+
+  if (uiState.mode === "declare_charge" && selected && clickedUnit && selected.owner === "playerA" && clickedUnit.owner === "playerB") {
+    const result = store.dispatch({
+      type: "DECLARE_CHARGE",
+      payload: {
+        playerId: "playerA",
+        unitId: selected.id,
+        targetId: clickedUnit.id
+      }
+    });
+    if (!result.ok) {
+      showError(result.message);
+      return;
+    }
+    cancelCurrentInteraction(uiState);
+    rerender();
+    return;
+  }
+
+  selectUnit(unitId);
+}
+
 async function maybeRunBot() {
   if (uiState.locked) return;
   const state = store.getState();
-  if (state.activePlayer !== "playerB" || state.phase !== "movement") return;
+  if (state.activePlayer !== "playerB") return;
+  if (!["movement", "assault", "combat"].includes(state.phase)) return;
   uiState.locked = true;
   rerender();
   await new Promise(resolve => setTimeout(resolve, 420));
@@ -239,7 +338,7 @@ async function maybeRunBot() {
   if (!result.ok) showError(result.message);
   uiState.locked = false;
   rerender();
-  if (store.getState().activePlayer === "playerB" && store.getState().phase === "movement") {
+  if (store.getState().activePlayer === "playerB" && ["movement", "assault", "combat"].includes(store.getState().phase)) {
     maybeRunBot();
   }
 }
@@ -271,7 +370,7 @@ function updatePreviewFromPoint(point) {
     uiState.previewPath = { path: [entryPoint, point] };
     uiState.previewUnit = { unitId: unit.id, leader: point, placements: autoArrangeModels(state, unit.id, point) };
   }
-  if (uiState.mode === "move" || uiState.mode === "disengage") {
+  if (uiState.mode === "move" || uiState.mode === "disengage" || uiState.mode === "run") {
     const leader = unit.models[unit.leadingModelId];
     uiState.previewPath = { path: [{ x: leader.x, y: leader.y }, point] };
     uiState.previewUnit = { unitId: unit.id, leader: point, placements: autoArrangeModels(state, unit.id, point) };

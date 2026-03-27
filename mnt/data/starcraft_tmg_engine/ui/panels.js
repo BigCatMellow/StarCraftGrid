@@ -1,9 +1,16 @@
+import { getObjectiveControlSnapshot } from "../engine/objectives.js";
+
 function formatPlayerName(playerId) {
   return playerId === "playerA" ? "Blue" : "Red";
 }
 
 function formatSupply(pool) {
   return pool === Infinity ? "∞" : String(pool);
+}
+
+function formatControl(result) {
+  if (!result.controller) return result.contested ? "Contested" : "Uncontrolled";
+  return `${formatPlayerName(result.controller)} (${result.playerASupply}-${result.playerBSupply})`;
 }
 
 function buildUnitCard(unit, selectedUnitId, onClick) {
@@ -31,14 +38,46 @@ export function renderTopPanel(state) {
   const battleState = document.getElementById("battleState");
   const playerSupply = `${getPlayerSupply(state, "playerA")} / ${formatSupply(state.players.playerA.supplyPool)}`;
   const enemySupply = `${getPlayerSupply(state, "playerB")} / ${formatSupply(state.players.playerB.supplyPool)}`;
+  const roundLimit = state.mission.pacing?.roundLimit ?? state.mission.roundLimit;
   battleState.innerHTML = `
-    <div class="label">Round</div><div class="value">${state.round} / ${state.mission.roundLimit}</div>
+    <div class="label">Round</div><div class="value">${state.round} / ${roundLimit}</div>
     <div class="label">Phase</div><div class="value">${titleCase(state.phase)}</div>
     <div class="label">Active Player</div><div class="value">${formatPlayerName(state.activePlayer)}</div>
     <div class="label">First Player Marker</div><div class="value">${formatPlayerName(state.firstPlayerMarkerHolder)}</div>
     <div class="label">Mission</div><div class="value">${state.mission.name}</div>
     <div class="label">Deployment</div><div class="value">${state.deployment.name}</div>
+    <div class="label">Blue VP</div><div class="value">${state.players.playerA.vp}</div>
+    <div class="label">Red VP</div><div class="value">${state.players.playerB.vp}</div>
+    <div class="label">Winner</div><div class="value">${state.winner ? formatPlayerName(state.winner) : "—"}</div>
   `;
+
+  const objectiveControl = document.getElementById("objectiveControl");
+  const snapshot = getObjectiveControlSnapshot(state);
+  objectiveControl.innerHTML = "";
+  for (const objective of state.deployment.missionMarkers) {
+    const result = snapshot[objective.id];
+    const line = document.createElement("div");
+    line.className = "objective-control-line";
+    line.innerHTML = `<span>${objective.id.toUpperCase()}</span><span>${formatControl(result)}</span>`;
+    objectiveControl.appendChild(line);
+  }
+
+  const roundSummary = document.getElementById("roundSummary");
+  roundSummary.innerHTML = "";
+  if (!state.lastRoundSummary) {
+    roundSummary.innerHTML = '<div class="empty-state">No completed round yet.</div>';
+  } else {
+    const scoreLine = document.createElement("div");
+    scoreLine.className = "objective-control-line";
+    scoreLine.innerHTML = `<span>R${state.lastRoundSummary.round} VP</span><span>Blue +${state.lastRoundSummary.scoring.gained.playerA} / Red +${state.lastRoundSummary.scoring.gained.playerB}</span>`;
+    roundSummary.appendChild(scoreLine);
+
+    const combatLine = document.createElement("div");
+    combatLine.className = "objective-control-line";
+    combatLine.innerHTML = `<span>Combat</span><span>${state.lastRoundSummary.combatEvents.length} attacks resolved</span>`;
+    roundSummary.appendChild(combatLine);
+  }
+
   document.getElementById("playerSupplyText").textContent = playerSupply;
   document.getElementById("enemySupplyText").textContent = enemySupply;
   document.getElementById("playerSupplyFill").style.width = `${fillPercent(state, "playerA")}%`;

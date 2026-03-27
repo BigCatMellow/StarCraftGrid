@@ -19,12 +19,34 @@ export function beginDeployInteraction(state, uiState, unitId) {
   uiState.previewUnit = null;
 }
 
+
+export function beginRunInteraction(state, uiState, unitId) {
+  const unit = state.units[unitId];
+  const leader = unit.models[unit.leadingModelId];
+  uiState.mode = "run";
+  uiState.previewPath = { path: [{ x: leader.x, y: leader.y }, { x: leader.x, y: leader.y }] };
+  uiState.previewUnit = { unitId, leader: { x: leader.x, y: leader.y }, placements: autoArrangeModels(state, unitId, leader) };
+}
+
 export function beginDisengageInteraction(state, uiState, unitId) {
   const unit = state.units[unitId];
   const leader = unit.models[unit.leadingModelId];
   uiState.mode = "disengage";
   uiState.previewPath = { path: [{ x: leader.x, y: leader.y }, { x: leader.x, y: leader.y }] };
   uiState.previewUnit = { unitId, leader: { x: leader.x, y: leader.y }, placements: autoArrangeModels(state, unitId, leader) };
+}
+
+
+export function beginDeclareRangedInteraction(uiState) {
+  uiState.mode = "declare_ranged";
+  uiState.previewPath = null;
+  uiState.previewUnit = null;
+}
+
+export function beginDeclareChargeInteraction(uiState) {
+  uiState.mode = "declare_charge";
+  uiState.previewPath = null;
+  uiState.previewUnit = null;
 }
 
 export function confirmCurrentInteraction() {}
