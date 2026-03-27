@@ -1,4 +1,5 @@
 import { getObjectiveControlSnapshot } from "../engine/objectives.js";
+import { pathLength, pathTravelCost } from "../engine/geometry.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -56,6 +57,20 @@ function addPathPreview(svg, preview) {
   if (!preview?.path || preview.path.length < 2) return;
   const d = preview.path.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
   svg.appendChild(createSvgElement("path", { d, class: "path-preview" }));
+
+  const totalDistance = pathLength(preview.path);
+  if (totalDistance <= 0.01) return;
+  const movementCost = preview.state?.board?.terrain ? pathTravelCost(preview.path, preview.state.board.terrain) : totalDistance;
+  const start = preview.path[0];
+  const end = preview.path[preview.path.length - 1];
+  const labelX = (start.x + end.x) / 2;
+  const labelY = (start.y + end.y) / 2 - 0.45;
+
+  const label = createSvgElement("text", { x: labelX, y: labelY, class: "path-preview-label" });
+  label.textContent = movementCost - totalDistance > 0.05
+    ? `${totalDistance.toFixed(1)}" (cost ${movementCost.toFixed(1)}")`
+    : `${totalDistance.toFixed(1)}"`;
+  svg.appendChild(label);
 }
 
 function addSelection(svg, state, uiState) {

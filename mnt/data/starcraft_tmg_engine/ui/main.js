@@ -492,12 +492,12 @@ function updatePreviewFromPoint(point) {
   if (!unit) return;
   if (uiState.mode === "deploy") {
     const entryPoint = canDeepStrike(unit) ? point : computeDeployEntryPoint(state, point);
-    uiState.previewPath = { path: canDeepStrike(unit) ? [entryPoint, entryPoint] : [entryPoint, point] };
+    uiState.previewPath = { path: canDeepStrike(unit) ? [entryPoint, entryPoint] : [entryPoint, point], state };
     uiState.previewUnit = { unitId: unit.id, leader: point, placements: autoArrangeModels(state, unit.id, point) };
   }
   if (uiState.mode === "move" || uiState.mode === "disengage" || uiState.mode === "run") {
     const leader = unit.models[unit.leadingModelId];
-    uiState.previewPath = { path: [{ x: leader.x, y: leader.y }, point] };
+    uiState.previewPath = { path: [{ x: leader.x, y: leader.y }, point], state };
     uiState.previewUnit = { unitId: unit.id, leader: point, placements: autoArrangeModels(state, unit.id, point) };
   }
 }

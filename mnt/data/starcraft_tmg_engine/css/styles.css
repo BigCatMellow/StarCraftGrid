@@ -274,6 +274,15 @@ button { font: inherit; }
 .objective-ring.playerA { stroke: rgba(127,167,255,.9); }
 .objective-ring.playerB { stroke: rgba(241,137,137,.9); }
 .path-preview { fill: none; stroke: var(--warning); stroke-width: .12; stroke-dasharray: .35 .22; }
+.path-preview-label {
+  fill: var(--warning);
+  font-size: .65px;
+  font-weight: 700;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: rgba(20, 23, 34, 0.9);
+  stroke-width: .12px;
+}
 .deploy-preview { fill: rgba(121,217,154,.12); stroke: var(--green); stroke-width: .08; }
 .selection-ring { fill: none; stroke: var(--green); stroke-width: .12; }
 .engagement-ring { fill: none; stroke: rgba(240, 195, 106, .6); stroke-width: .05; stroke-dasharray: .12 .12; }
