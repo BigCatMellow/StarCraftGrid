@@ -171,11 +171,15 @@ function publishLogNotifications(state) {
   });
 }
 
-function actionButton(label, className, onClick, disabled = false) {
+function actionButton(label, className, onClick, disabled = false, disabledReason = "") {
   const button = document.createElement("button");
   button.className = `btn ${className}`;
   button.textContent = label;
   button.disabled = disabled;
+  if (disabled && disabledReason) {
+    button.title = disabledReason;
+    button.setAttribute("aria-label", `${label}. Disabled: ${disabledReason}`);
+  }
   button.addEventListener("click", onClick);
   return button;
 }
@@ -190,7 +194,7 @@ function buildActionButtons() {
   buttons.push(actionButton("Cancel", "secondary", () => {
     cancelCurrentInteraction(uiState);
     rerender();
-  }, !uiState.mode));
+  }, !uiState.mode, "No active interaction to cancel."));
 
   if (state.activePlayer !== "playerA") return buttons;
   if (unit.owner !== "playerA") return buttons;
@@ -222,12 +226,12 @@ function buildActionButtons() {
     buttons.unshift(actionButton("Move", "primary", () => {
       beginMoveInteraction(state, uiState, unit.id);
       rerender();
-    }, unit.status.engaged));
+    }, unit.status.engaged, "Unit is engaged. Disengage before moving."));
 
     buttons.unshift(actionButton("Disengage", "warn", () => {
       beginDisengageInteraction(state, uiState, unit.id);
       rerender();
-    }, !unit.status.engaged));
+    }, !unit.status.engaged, "Unit must be engaged to disengage."));
 
     return buttons;
   }
@@ -236,17 +240,17 @@ function buildActionButtons() {
     buttons.unshift(actionButton("Charge", "warn", () => {
       beginDeclareChargeInteraction(uiState);
       rerender();
-    }, !(unit.meleeWeapons?.length) || unit.status.cannotChargeThisAssault));
+    }, !(unit.meleeWeapons?.length) || unit.status.cannotChargeThisAssault, unit.status.cannotChargeThisAssault ? "This unit cannot charge again this assault phase." : "This unit has no melee weapons."));
 
     buttons.unshift(actionButton("Ranged", "secondary", () => {
       beginDeclareRangedInteraction(uiState);
       rerender();
-    }, !(unit.rangedWeapons?.length) || unit.status.cannotRangedAttackThisAssault));
+    }, !(unit.rangedWeapons?.length) || unit.status.cannotRangedAttackThisAssault, unit.status.cannotRangedAttackThisAssault ? "This unit has already made a ranged declaration this assault phase." : "This unit has no ranged weapons."));
 
     buttons.unshift(actionButton("Run", "primary", () => {
       beginRunInteraction(state, uiState, unit.id);
       rerender();
-    }, unit.status.engaged));
+    }, unit.status.engaged, "Unit is engaged. Disengage before running."));
     return buttons;
   }
 
@@ -264,7 +268,7 @@ function buildActionButtons() {
         }
       });
       if (!result.ok) showError(result.message);
-    }, !hasQueuedAttacks));
+    }, !hasQueuedAttacks, "No queued attacks for this unit."));
     return buttons;
   }
 
@@ -295,7 +299,7 @@ function buildCardButtons() {
           }
         });
         if (!result.ok) showError(result.message);
-      }, !hasValidSelection));
+      }, !hasValidSelection, "Select a friendly battlefield unit first."));
       continue;
     }
 

@@ -1,4 +1,4 @@
-import { renderTopPanel, renderReserveTray, renderSelectedUnit, renderActionButtons, renderTacticalCards, renderLog } from "./panels.js";
+import { renderTopPanel, renderReserveTray, renderSelectedUnit, renderActionButtons, renderTacticalCards, renderCombatQueue, renderLog } from "./panels.js";
 import { renderBoard } from "./board.js";
 
 export function renderAll(state, uiState, handlers) {
@@ -7,6 +7,7 @@ export function renderAll(state, uiState, handlers) {
   renderSelectedUnit(state, uiState);
   renderActionButtons(handlers.buildActionButtons());
   renderTacticalCards(state, handlers.buildCardButtons());
+  renderCombatQueue(state);
   renderLog(state);
   renderBoard(state, uiState, handlers);
   document.getElementById("modeBanner").textContent = handlers.getModeText();

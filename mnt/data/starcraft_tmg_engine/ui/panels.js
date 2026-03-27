@@ -103,6 +103,13 @@ function titleCase(value) {
   return value.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase());
 }
 
+function formatQueueType(type) {
+  if (type === "ranged_attack") return "Ranged";
+  if (type === "charge_attack") return "Charge";
+  if (type === "overwatch_attack") return "Overwatch";
+  return titleCase(type ?? "attack");
+}
+
 function renderUnitList(containerId, units, state, uiState, onClick) {
   const container = document.getElementById(containerId);
   container.innerHTML = "";
@@ -176,6 +183,29 @@ export function renderTacticalCards(state, buttons) {
   }
 
   buttons.forEach(button => container.appendChild(button));
+}
+
+export function renderCombatQueue(state) {
+  const panel = document.getElementById("combatQueuePanel");
+  if (!panel) return;
+  panel.innerHTML = "";
+
+  if (!state.combatQueue.length) {
+    panel.innerHTML = '<div class="empty-state">No queued attacks.</div>';
+    return;
+  }
+
+  state.combatQueue.forEach((entry, index) => {
+    const attackerName = state.units[entry.attackerId]?.name ?? entry.attackerId;
+    const defenderName = state.units[entry.defenderId]?.name ?? entry.defenderId;
+    const row = document.createElement("div");
+    row.className = "objective-control-line";
+    row.innerHTML = `
+      <span>#${index + 1} ${formatQueueType(entry.type)}</span>
+      <span>${attackerName} → ${defenderName}</span>
+    `;
+    panel.appendChild(row);
+  });
 }
 
 export function renderLog(state) {
