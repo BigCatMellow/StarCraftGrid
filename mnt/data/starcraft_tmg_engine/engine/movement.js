@@ -1,8 +1,9 @@
 import { appendLog } from "./state.js";
-import { markUnitActivatedForMovement, endActivationAndPassTurn, isUnitEligibleForMovementActivation } from "./activation.js";
-import { pointInBoard, pathLength, pathBlockedForCircle, circleOverlapsTerrain, circleOverlapsCircle, distance } from "./geometry.js";
+import { markUnitActivatedForCurrentPhase, markUnitActivatedForMovement, endActivationAndPassTurn, isUnitEligibleForCurrentPhaseActivation } from "./activation.js";
+import { pointInBoard, pathLength, pathBlockedForCircle, pathTravelCost, circleOverlapsTerrain, circleOverlapsCircle, distance } from "./geometry.js";
 import { autoArrangeModels, applyModelPlacementsAndResolveCoherency } from "./coherency.js";
 import { refreshAllSupply } from "./supply.js";
+import { getModifiedValue } from "./effects.js";
 
 const ENGAGEMENT_RANGE = 1;
 
@@ -50,7 +51,7 @@ function updateUnitEngagementStatus(state) {
 function validateShared(state, playerId, unitId) {
   const unit = state.units[unitId];
   if (!unit) return { ok: false, code: "UNKNOWN_UNIT", message: "Unit not found." };
-  if (!isUnitEligibleForMovementActivation(state, unitId)) return { ok: false, code: "UNIT_NOT_ELIGIBLE", message: "Unit is not eligible to activate." };
+  if (!isUnitEligibleForCurrentPhaseActivation(state, unitId)) return { ok: false, code: "UNIT_NOT_ELIGIBLE", message: "Unit is not eligible to activate." };
   if (unit.owner !== playerId) return { ok: false, code: "WRONG_OWNER", message: "You do not control that unit." };
   return { ok: true, unit };
 }
@@ -115,7 +116,7 @@ export function resolveHold(state, playerId, unitId) {
   if (!validation.ok) return validation;
   const unit = state.units[unitId];
   unit.status.stationary = true;
-  markUnitActivatedForMovement(state, unitId);
+  markUnitActivatedForCurrentPhase(state, unitId);
   appendLog(state, "action", `${unit.name} holds position.`);
   endActivationAndPassTurn(state);
   return { ok: true, state, events: [{ type: "unit_held", payload: { unitId } }] };
@@ -125,6 +126,7 @@ export function validateMove(state, playerId, unitId, leadingModelId, path, mode
   const shared = validateShared(state, playerId, unitId);
   if (!shared.ok) return shared;
   const unit = shared.unit;
+  if (state.phase !== "movement") return { ok: false, code: "WRONG_PHASE", message: "Move is only available in the Movement Phase." };
   if (unit.status.location !== "battlefield") return { ok: false, code: "NOT_ON_BATTLEFIELD", message: "Unit is not on the battlefield." };
   if (unit.status.engaged) return { ok: false, code: "UNIT_ENGAGED", message: "Engaged units cannot make a normal Move." };
   if (!path || path.length < 2) return { ok: false, code: "NO_PATH", message: "Move requires a path." };
@@ -132,7 +134,14 @@ export function validateMove(state, playerId, unitId, leadingModelId, path, mode
   if (leader.x == null || leader.y == null) return { ok: false, code: "INVALID_LEADER", message: "Leading model must be on the battlefield." };
   const start = path[0];
   if (Math.abs(start.x - leader.x) > 0.01 || Math.abs(start.y - leader.y) > 0.01) return { ok: false, code: "BAD_PATH_START", message: "Path must begin at the leader's current position." };
-  if (pathLength(path) - unit.speed > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only move ${unit.speed}".` };
+  const modifiedSpeed = getModifiedValue(state, {
+    timing: "movement_move",
+    unitId: unit.id,
+    key: "unit.speed",
+    baseValue: unit.speed
+  }).value;
+  const travelCost = pathTravelCost(path, state.board.terrain);
+  if (travelCost - modifiedSpeed > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only move ${modifiedSpeed}" (difficult terrain costs extra movement).` };
   const ignore = new Set(unit.modelIds);
   if (pathBlockedForCircle(path, unit.base.radiusInches, state, ignore)) return { ok: false, code: "PATH_BLOCKED", message: "Path crosses blocked ground, terrain, or bases." };
   const end = finalPointFromPath(path);
@@ -168,12 +177,20 @@ export function validateDisengage(state, playerId, unitId, leadingModelId, path,
   const shared = validateShared(state, playerId, unitId);
   if (!shared.ok) return shared;
   const unit = shared.unit;
+  if (state.phase !== "movement") return { ok: false, code: "WRONG_PHASE", message: "Disengage is only available in the Movement Phase." };
   if (unit.status.location !== "battlefield") return { ok: false, code: "NOT_ON_BATTLEFIELD", message: "Unit is not on the battlefield." };
   if (!unit.status.engaged) return { ok: false, code: "NOT_ENGAGED", message: "Only engaged units can Disengage." };
   if (!path || path.length < 2) return { ok: false, code: "NO_PATH", message: "Disengage requires a path." };
   const leader = getModel(unit, leadingModelId);
   if (leader.x == null || leader.y == null) return { ok: false, code: "INVALID_LEADER", message: "Leading model must be on the battlefield." };
-  if (pathLength(path) - unit.speed > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only move ${unit.speed}".` };
+  const modifiedSpeed = getModifiedValue(state, {
+    timing: "movement_disengage",
+    unitId: unit.id,
+    key: "unit.speed",
+    baseValue: unit.speed
+  }).value;
+  const travelCost = pathTravelCost(path, state.board.terrain);
+  if (travelCost - modifiedSpeed > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only move ${modifiedSpeed}" (difficult terrain costs extra movement).` };
   const ignore = new Set(unit.modelIds);
   if (pathBlockedForCircle(path, unit.base.radiusInches, state, ignore)) return { ok: false, code: "PATH_BLOCKED", message: "Path crosses blocked ground, terrain, or bases." };
   const end = finalPointFromPath(path);

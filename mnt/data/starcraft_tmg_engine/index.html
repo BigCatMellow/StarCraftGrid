@@ -38,6 +38,18 @@
             </div>
             <div class="meter"><div id="enemySupplyFill" class="meter-fill zerg"></div></div>
           </div>
+          <div class="progress-block">
+            <div class="progress-header">
+              <span>Objective Control</span>
+            </div>
+            <div id="objectiveControl" class="objective-control-list"></div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-header">
+              <span>Round Summary</span>
+            </div>
+            <div id="roundSummary" class="objective-control-list"></div>
+          </div>
         </section>
 
         <section class="card">
@@ -69,6 +81,11 @@
         </section>
 
         <section class="card">
+          <h2>Tactical Cards</h2>
+          <div id="tacticalCards" class="action-stack"></div>
+        </section>
+
+        <section class="card">
           <h2>Enemy Reserves</h2>
           <div id="enemyReserves" class="unit-list compact"></div>
         </section>
@@ -85,6 +102,7 @@
       </aside>
     </main>
   </div>
+  <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
 
   <script type="module" src="./ui/main.js"></script>
 </body>

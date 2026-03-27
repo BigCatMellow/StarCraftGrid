@@ -1,7 +1,7 @@
 import { appendLog } from "./state.js";
 import { markUnitActivatedForMovement, endActivationAndPassTurn, isUnitEligibleForMovementActivation } from "./activation.js";
 import { moveUnitToBattlefield } from "./reserves.js";
-import { pointOnEntryEdge, pointInsideEnemyZoneOfInfluence, pathLength, pathBlockedForCircle, pointInBoard, circleOverlapsTerrain, circleOverlapsCircle } from "./geometry.js";
+import { pointOnEntryEdge, pointInsideEnemyZoneOfInfluence, pathTravelCost, pathBlockedForCircle, pointInBoard, circleOverlapsTerrain, circleOverlapsCircle, distance } from "./geometry.js";
 import { autoArrangeModels, applyModelPlacementsAndResolveCoherency } from "./coherency.js";
 import { refreshAllSupply, validateDeploySupply } from "./supply.js";
 import { refreshEngagement } from "./movement.js";
@@ -36,32 +36,55 @@ export function getLegalEntryEdgeSegments(state, playerId) {
   return [];
 }
 
+function hasReserveDropAbility(unit) {
+  return unit.abilities?.includes("deep_strike");
+}
+
+function pointTooCloseToEnemy(state, playerId, point, minDistance = 6) {
+  for (const enemyUnitId of state.players[playerId === "playerA" ? "playerB" : "playerA"].battlefieldUnitIds) {
+    const enemy = state.units[enemyUnitId];
+    if (!enemy) continue;
+    for (const model of Object.values(enemy.models)) {
+      if (!model.alive || model.x == null || model.y == null) continue;
+      if (distance(point, model) - enemy.base.radiusInches < minDistance - 1e-6) return true;
+    }
+  }
+  return false;
+}
+
 export function validateDeploy(state, playerId, unitId, leadingModelId, entryPoint, path, modelPlacements = null) {
   const shared = validateShared(state, playerId, unitId);
   if (!shared.ok) return shared;
   const unit = shared.unit;
   const supplyValidation = validateDeploySupply(state, playerId, unitId);
   if (!supplyValidation.ok) return { ok: false, code: "SUPPLY_BLOCKED", message: supplyValidation.reason };
-  if (!pointOnEntryEdge(state.deployment, playerId, entryPoint)) return { ok: false, code: "BAD_ENTRY_EDGE", message: "Entry point must be on your entry edge." };
+  const reserveDrop = hasReserveDropAbility(unit);
+  if (!reserveDrop && !pointOnEntryEdge(state.deployment, playerId, entryPoint)) return { ok: false, code: "BAD_ENTRY_EDGE", message: "Entry point must be on your entry edge." };
+  if (reserveDrop && !pointInBoard(entryPoint, state.board, unit.base.radiusInches)) return { ok: false, code: "BAD_ENTRY_POINT", message: "Deep strike entry point must be on the battlefield." };
+  if (reserveDrop && pointTooCloseToEnemy(state, playerId, entryPoint)) return { ok: false, code: "DEEP_STRIKE_DENIED", message: "Deep strike entry must be at least 6\" from enemy models." };
   if (!path || path.length < 2) return { ok: false, code: "NO_PATH", message: "Deploy requires a path." };
   const start = path[0];
   if (Math.abs(start.x - entryPoint.x) > 0.01 || Math.abs(start.y - entryPoint.y) > 0.01) return { ok: false, code: "PATH_ENTRY_MISMATCH", message: "Path must start at the chosen entry point." };
-  if (pathLength(path) - unit.speed > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only deploy ${unit.speed}" from the edge.` };
+  const travelCost = pathTravelCost(path, state.board.terrain);
+  if (travelCost - unit.speed > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only deploy ${unit.speed}" (difficult terrain costs extra movement).` };
   const side = state.deployment.entryEdges[playerId].side;
   const adjustedStart = { ...entryPoint };
-  if (side === "west") adjustedStart.x = unit.base.radiusInches;
-  if (side === "east") adjustedStart.x = state.board.widthInches - unit.base.radiusInches;
-  if (side === "north") adjustedStart.y = unit.base.radiusInches;
-  if (side === "south") adjustedStart.y = state.board.heightInches - unit.base.radiusInches;
+  if (!reserveDrop) {
+    if (side === "west") adjustedStart.x = unit.base.radiusInches;
+    if (side === "east") adjustedStart.x = state.board.widthInches - unit.base.radiusInches;
+    if (side === "north") adjustedStart.y = unit.base.radiusInches;
+    if (side === "south") adjustedStart.y = state.board.heightInches - unit.base.radiusInches;
+  }
   const collisionPath = [adjustedStart, ...path.slice(1)];
   if (pathBlockedForCircle(collisionPath, unit.base.radiusInches, state, new Set(unit.modelIds))) return { ok: false, code: "PATH_BLOCKED", message: "Path crosses blocked ground, terrain, or bases." };
   const end = path[path.length - 1];
   if (!pointInBoard(end, state.board, unit.base.radiusInches)) return { ok: false, code: "OFF_BOARD", message: "Leading model must end fully on the battlefield." };
   if (circleOverlapsTerrain(end, unit.base.radiusInches, state.board.terrain)) return { ok: false, code: "TERRAIN_OVERLAP", message: "Leading model cannot end overlapping impassable terrain." };
   if (overlapsAnyModel(state, unit, end)) return { ok: false, code: "BASE_OVERLAP", message: "Leading model would overlap an existing base." };
+  if (reserveDrop && pointTooCloseToEnemy(state, playerId, end)) return { ok: false, code: "DEEP_STRIKE_DENIED", message: "Deep strike destination must be at least 6\" from enemy models." };
   if (pointInsideEnemyZoneOfInfluence(state, playerId, end, unit.base.radiusInches)) return { ok: false, code: "ZONE_OF_INFLUENCE", message: "Deploy cannot end inside the opponent's zone of influence." };
   const placements = modelPlacements ?? autoArrangeModels(state, unitId, end);
-  return { ok: true, derived: { end, placements } };
+  return { ok: true, derived: { end, placements, reserveDrop } };
 }
 
 export function resolveDeploy(state, playerId, unitId, leadingModelId, entryPoint, path, modelPlacements = null) {
@@ -79,7 +102,7 @@ export function resolveDeploy(state, playerId, unitId, leadingModelId, entryPoin
   markUnitActivatedForMovement(state, unitId);
   refreshEngagement(state);
   refreshAllSupply(state);
-  appendLog(state, "action", `${unit.name} deploys from reserves.${coherency.outOfCoherency ? " Unit is out of coherency." : ""}`);
+  appendLog(state, "action", `${unit.name} deploys from reserves${validation.derived.reserveDrop ? " via deep strike" : ""}.${coherency.outOfCoherency ? " Unit is out of coherency." : ""}`);
   endActivationAndPassTurn(state);
   return { ok: true, state, events: [{ type: "unit_deployed", payload: { unitId } }] };
 }

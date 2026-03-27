@@ -40,6 +40,14 @@ export function circleOverlapsTerrain(center, radius, terrainList = []) {
   });
 }
 
+export function pointInsideRect(point, rect) {
+  return point.x >= rect.minX && point.x <= rect.maxX && point.y >= rect.minY && point.y <= rect.maxY;
+}
+
+export function pointInsideDifficultTerrain(point, terrainList = []) {
+  return terrainList.some(terrain => terrain.kind === "cover" && pointInsideRect(point, terrain.rect));
+}
+
 export function sampleSegment(segmentStart, segmentEnd, step = 0.2) {
   const len = distance(segmentStart, segmentEnd);
   const count = Math.max(1, Math.ceil(len / step));
@@ -73,6 +81,22 @@ export function pathBlockedForCircle(path, radius, state, ignoreModelIds = new S
     }
   }
   return false;
+}
+
+export function pathTravelCost(path = [], terrainList = [], difficultMultiplier = 2) {
+  if (!path || path.length < 2) return 0;
+  let total = 0;
+  for (let i = 1; i < path.length; i += 1) {
+    const samples = sampleSegment(path[i - 1], path[i], 0.15);
+    for (let j = 1; j < samples.length; j += 1) {
+      const prev = samples[j - 1];
+      const curr = samples[j];
+      const mid = { x: (prev.x + curr.x) / 2, y: (prev.y + curr.y) / 2 };
+      const multiplier = pointInsideDifficultTerrain(mid, terrainList) ? difficultMultiplier : 1;
+      total += distance(prev, curr) * multiplier;
+    }
+  }
+  return total;
 }
 
 export function pointOnEntryEdge(deployment, playerId, point, tolerance = 0.15) {
