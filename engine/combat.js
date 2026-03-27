@@ -1,7 +1,7 @@
 import { appendLog } from "./state.js";
-import { distance, pointInBoard, circleOverlapsTerrain, circleOverlapsCircle } from "./geometry.js";
+import { distance, pointInBoard, circleOverlapsTerrain, circleOverlapsCircle, circleOverlapsRect } from "./geometry.js";
 import { recomputeUnitCurrentSupply, refreshAllSupply } from "./supply.js";
-import { getModifiedValue } from "./effects.js";
+import { getModifiedValue, onEvent } from "./effects.js";
 import { refreshEngagement } from "./movement.js";
 
 const MELEE_REACH_INCHES = 1.5;
@@ -141,6 +141,16 @@ function getBestSaveTarget(unit, armorPenetration) {
   return Math.min(armorSave, unit.defense.invulnerableSave);
 }
 
+function isUnitReceivingCover(state, unit) {
+  const coverTerrain = state.board.terrain.filter(terrain => !terrain.impassable && terrain.kind === "cover");
+  if (!coverTerrain.length) return false;
+  return unit.modelIds.some(modelId => {
+    const model = unit.models[modelId];
+    if (!model.alive || model.x == null || model.y == null) return false;
+    return coverTerrain.some(terrain => circleOverlapsRect({ x: model.x, y: model.y }, unit.base.radiusInches, terrain.rect));
+  });
+}
+
 function applyDamageToUnit(unit, totalDamage) {
   let remaining = totalDamage;
   const ordered = unit.modelIds.map(modelId => unit.models[modelId]).filter(model => model.alive);
@@ -252,7 +262,9 @@ function resolveSingleAttack(state, declaration, rng) {
 
   const woundTargetBase = woundTargetForProfile(weapon.strength, target.defense.toughness);
   const woundTarget = applyWeaponKeywordsToWoundTarget(weapon, target, woundTargetBase);
-  const saveTarget = getBestSaveTarget(target, weapon.armorPenetration);
+  let saveTarget = getBestSaveTarget(target, weapon.armorPenetration);
+  const coverApplies = !isMelee && isUnitReceivingCover(state, target);
+  if (coverApplies) saveTarget = Math.max(2, saveTarget - 1);
 
   const rawAttempts = aliveAttackerModels * attemptsPerModel;
   const attempts = Math.max(0, Math.floor(isOverwatch ? rawAttempts / 2 : rawAttempts));
@@ -274,7 +286,7 @@ function resolveSingleAttack(state, declaration, rng) {
   appendLog(
     state,
     "combat",
-    `${attacker.name} ${isMelee ? "charges" : isOverwatch ? "fires overwatch at" : "attacks"} ${target.name} with ${weapon.name}: ${attempts} attacks, ${hits} hits, ${wounds} wounds, ${saved} saves, ${casualties} casualties.`
+    `${attacker.name} ${isMelee ? "charges" : isOverwatch ? "fires overwatch at" : "attacks"} ${target.name} with ${weapon.name}: ${attempts} attacks, ${hits} hits, ${wounds} wounds, ${saved} saves${coverApplies ? " (cover)" : ""}, ${casualties} casualties.`
   );
 
   return {
@@ -295,6 +307,39 @@ function resolveSingleAttack(state, declaration, rng) {
   };
 }
 
+export function hasQueuedCombatForUnit(state, unitId) {
+  return state.combatQueue.some(entry =>
+    ["ranged_attack", "charge_attack", "overwatch_attack"].includes(entry.type) && entry.attackerId === unitId
+  );
+}
+
+export function resolveCombatForUnit(state, unitId, { rng = Math.random } = {}) {
+  const events = [];
+  const declarations = state.combatQueue.filter(entry =>
+    ["ranged_attack", "charge_attack", "overwatch_attack"].includes(entry.type) && entry.attackerId === unitId
+  );
+
+  if (!declarations.length) {
+    return { ok: true, state, events };
+  }
+
+  for (const declaration of declarations) {
+    const event = resolveSingleAttack(state, declaration, rng);
+    if (event) {
+      events.push(event);
+      onEvent(state, event);
+    }
+  }
+
+  state.combatQueue = state.combatQueue.filter(entry =>
+    !(["ranged_attack", "charge_attack", "overwatch_attack"].includes(entry.type) && entry.attackerId === unitId)
+  );
+
+  refreshEngagement(state);
+  refreshAllSupply(state);
+  return { ok: true, state, events };
+}
+
 export function resolveCombatPhase(state, { rng = Math.random } = {}) {
   const events = [];
   state.lastCombatReport = [];
@@ -307,7 +352,10 @@ export function resolveCombatPhase(state, { rng = Math.random } = {}) {
 
   for (const declaration of declarations) {
     const event = resolveSingleAttack(state, declaration, rng);
-    if (event) events.push(event);
+    if (event) {
+      events.push(event);
+      onEvent(state, event);
+    }
   }
 
   state.lastCombatReport = events.map(event => event.payload);

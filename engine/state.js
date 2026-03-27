@@ -11,14 +11,23 @@ function createTerrain() {
   ];
 }
 
-function createDefaultHand(playerId) {
-  return [
-    { instanceId: `${playerId}_card_focused_fire_r1`, cardId: "focused_fire" },
-    { instanceId: `${playerId}_card_rapid_relocation_r1`, cardId: "rapid_relocation" }
-  ];
+function createDefaultHand(playerId, cardIds = ["focused_fire", "rapid_relocation"]) {
+  return cardIds.map((cardId, index) => ({
+    instanceId: `${playerId}_card_${cardId}_${index + 1}`,
+    cardId
+  }));
 }
 
-export function createInitialGameState({ missionId, deploymentId, armyA, armyB, firstPlayerMarkerHolder = "playerA" }) {
+export function createInitialGameState({
+  missionId,
+  deploymentId,
+  armyA,
+  armyB,
+  tacticalCardsA = ["focused_fire", "rapid_relocation"],
+  tacticalCardsB = ["focused_fire", "rapid_relocation"],
+  rules = { gridMode: false },
+  firstPlayerMarkerHolder = "playerA"
+}) {
   const mission = getMission(missionId);
   const deployment = getDeployment(deploymentId);
   const units = {};
@@ -46,6 +55,9 @@ export function createInitialGameState({ missionId, deploymentId, armyA, armyB, 
       heightInches: deployment.boardHeightInches,
       terrain: createTerrain()
     },
+    rules: {
+      gridMode: Boolean(rules?.gridMode)
+    },
     players: {
       playerA: {
         vp: 0,
@@ -54,7 +66,7 @@ export function createInitialGameState({ missionId, deploymentId, armyA, armyB, 
         supplyPool: mission.startingSupply,
         availableSupply: mission.startingSupply,
         hasPassedThisPhase: false,
-        hand: createDefaultHand("playerA"),
+        hand: createDefaultHand("playerA", tacticalCardsA),
         discardPile: []
       },
       playerB: {
@@ -64,7 +76,7 @@ export function createInitialGameState({ missionId, deploymentId, armyA, armyB, 
         supplyPool: mission.startingSupply,
         availableSupply: mission.startingSupply,
         hasPassedThisPhase: false,
-        hand: createDefaultHand("playerB"),
+        hand: createDefaultHand("playerB", tacticalCardsB),
         discardPile: []
       }
     },

@@ -1,6 +1,6 @@
 import { appendLog } from "./state.js";
 import { endActivationAndPassTurn, isUnitEligibleForCurrentPhaseActivation, markUnitActivatedForCurrentPhase } from "./activation.js";
-import { pathLength, pathBlockedForCircle, pointInBoard, circleOverlapsTerrain, circleOverlapsCircle, distance } from "./geometry.js";
+import { pathLength, pathTravelCost, gridDistance, pathBlockedForCircle, pointInBoard, circleOverlapsTerrain, circleOverlapsCircle, distance } from "./geometry.js";
 import { autoArrangeModels, applyModelPlacementsAndResolveCoherency } from "./coherency.js";
 import { refreshAllSupply } from "./supply.js";
 import { getModifiedValue } from "./effects.js";
@@ -82,7 +82,8 @@ export function validateRun(state, playerId, unitId, leadingModelId, path, model
   const start = path[0];
   if (Math.abs(start.x - leader.x) > 0.01 || Math.abs(start.y - leader.y) > 0.01) return { ok: false, code: "BAD_PATH_START", message: "Path must begin at the leader's current position." };
   const maxDistance = unit.speed + RUN_BONUS;
-  if (pathLength(path) - maxDistance > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only Run ${maxDistance}".` };
+  const travelCost = state.rules?.gridMode ? gridDistance(path[0], path[path.length - 1]) : pathTravelCost(path, state.board.terrain);
+  if (travelCost - maxDistance > 1e-6) return { ok: false, code: "TOO_FAR", message: `${unit.name} can only Run ${maxDistance}" (difficult terrain costs extra movement).` };
   const ignore = new Set(unit.modelIds);
   if (pathBlockedForCircle(path, unit.base.radiusInches, state, ignore)) return { ok: false, code: "PATH_BLOCKED", message: "Path crosses blocked ground, terrain, or bases." };
   const end = path[path.length - 1];
@@ -90,7 +91,7 @@ export function validateRun(state, playerId, unitId, leadingModelId, path, model
   if (circleOverlapsTerrain(end, unit.base.radiusInches, state.board.terrain)) return { ok: false, code: "TERRAIN_OVERLAP", message: "Leading model cannot end overlapping impassable terrain." };
   if (overlappingModelsAtPoint(state, unit, end, ignore)) return { ok: false, code: "BASE_OVERLAP", message: "Leading model would overlap another base." };
   const placements = modelPlacements ?? autoArrangeModels(state, unitId, end);
-  return { ok: true, derived: { end, placements, runDistance: pathLength(path), maxDistance } };
+  return { ok: true, derived: { end, placements, runDistance: pathLength(path), travelCost, maxDistance } };
 }
 
 export function resolveRun(state, playerId, unitId, leadingModelId, path, modelPlacements = null) {
@@ -113,7 +114,7 @@ export function resolveRun(state, playerId, unitId, leadingModelId, path, modelP
   appendLog(
     state,
     "action",
-    `${unit.name} runs ${validation.derived.runDistance.toFixed(1)}" (max ${validation.derived.maxDistance}").${coherency.outOfCoherency ? " Unit is out of coherency." : ""}`
+    `${unit.name} runs ${validation.derived.runDistance.toFixed(1)}" (movement cost ${validation.derived.travelCost.toFixed(1)} / max ${validation.derived.maxDistance}").${coherency.outOfCoherency ? " Unit is out of coherency." : ""}`
   );
 
   endActivationAndPassTurn(state);

@@ -18,6 +18,18 @@ function isDurationActive(effect) {
   return effect.duration.remaining > 0;
 }
 
+function eventMatchesDuration(effect, event) {
+  if (!effect.duration || effect.duration.type !== "events") return false;
+  if (effect.duration.eventType && effect.duration.eventType !== event.type) return false;
+  if (effect.duration.unitRole === "attacker") {
+    return effect.target?.scope === "unit" && effect.target.unitId === event.payload?.attackerId;
+  }
+  if (effect.duration.unitRole === "target") {
+    return effect.target?.scope === "unit" && effect.target.unitId === event.payload?.targetId;
+  }
+  return true;
+}
+
 function matchesTiming(effect, timing) {
   if (!effect.timings || !effect.timings.length) return true;
   return effect.timings.includes(timing);
@@ -91,6 +103,15 @@ export function onPhaseStart(state, phase) {
 export function onRoundStart(state) {
   for (const effect of state.effects) {
     if (!effect.duration || effect.duration.type !== "rounds") continue;
+    effect.duration.remaining -= 1;
+  }
+  pruneExpiredEffects(state);
+}
+
+export function onEvent(state, event) {
+  for (const effect of state.effects) {
+    if (!isDurationActive(effect)) continue;
+    if (!eventMatchesDuration(effect, event)) continue;
     effect.duration.remaining -= 1;
   }
   pruneExpiredEffects(state);

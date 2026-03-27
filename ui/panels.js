@@ -48,6 +48,7 @@ export function renderTopPanel(state) {
     <div class="label">Deployment</div><div class="value">${state.deployment.name}</div>
     <div class="label">Blue VP</div><div class="value">${state.players.playerA.vp}</div>
     <div class="label">Red VP</div><div class="value">${state.players.playerB.vp}</div>
+    <div class="label">Queued Attacks</div><div class="value">${state.combatQueue.length}</div>
     <div class="label">Winner</div><div class="value">${state.winner ? formatPlayerName(state.winner) : "—"}</div>
   `;
 
@@ -102,6 +103,13 @@ function titleCase(value) {
   return value.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase());
 }
 
+function formatQueueType(type) {
+  if (type === "ranged_attack") return "Ranged";
+  if (type === "charge_attack") return "Charge";
+  if (type === "overwatch_attack") return "Overwatch";
+  return titleCase(type ?? "attack");
+}
+
 function renderUnitList(containerId, units, state, uiState, onClick) {
   const container = document.getElementById(containerId);
   container.innerHTML = "";
@@ -152,6 +160,52 @@ export function renderActionButtons(buttons) {
     return;
   }
   buttons.forEach(button => container.appendChild(button));
+}
+
+export function renderTacticalCards(state, buttons) {
+  const container = document.getElementById("tacticalCards");
+  container.innerHTML = "";
+
+  if (state.activePlayer !== "playerA") {
+    container.innerHTML = '<div class="empty-state">Cards can be played only during your turn.</div>';
+    return;
+  }
+
+  if (state.players.playerA.hasPassedThisPhase) {
+    container.innerHTML = '<div class="empty-state">You already passed this phase.</div>';
+    return;
+  }
+
+  if (!buttons.length) {
+    const handCount = state.players.playerA.hand?.length ?? 0;
+    container.innerHTML = `<div class="empty-state">${handCount ? "No cards are playable in this phase." : "No cards in hand."}</div>`;
+    return;
+  }
+
+  buttons.forEach(button => container.appendChild(button));
+}
+
+export function renderCombatQueue(state) {
+  const panel = document.getElementById("combatQueuePanel");
+  if (!panel) return;
+  panel.innerHTML = "";
+
+  if (!state.combatQueue.length) {
+    panel.innerHTML = '<div class="empty-state">No queued attacks.</div>';
+    return;
+  }
+
+  state.combatQueue.forEach((entry, index) => {
+    const attackerName = state.units[entry.attackerId]?.name ?? entry.attackerId;
+    const defenderName = state.units[entry.defenderId]?.name ?? entry.defenderId;
+    const row = document.createElement("div");
+    row.className = "objective-control-line";
+    row.innerHTML = `
+      <span>#${index + 1} ${formatQueueType(entry.type)}</span>
+      <span>${attackerName} → ${defenderName}</span>
+    `;
+    panel.appendChild(row);
+  });
 }
 
 export function renderLog(state) {
