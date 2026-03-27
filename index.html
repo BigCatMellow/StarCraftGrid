@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StarCraft TMG Engine - Phase 1 Foundation</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>StarCraft TMG Engine</h1>
+        <p class="subtitle">Phase 1 foundation: reserves, supply, deploy, move, disengage, pass</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="newGameBtn" class="btn secondary">New Game</button>
+        <button id="passBtn" class="btn primary">Pass</button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <aside class="panel left-panel">
+        <section class="card state-card">
+          <h2>Battle State</h2>
+          <div class="kv-grid" id="battleState"></div>
+          <div class="progress-block">
+            <div class="progress-header">
+              <span>Your Supply</span>
+              <span id="playerSupplyText">0 / 4</span>
+            </div>
+            <div class="meter"><div id="playerSupplyFill" class="meter-fill terran"></div></div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-header">
+              <span>Enemy Supply</span>
+              <span id="enemySupplyText">0 / 4</span>
+            </div>
+            <div class="meter"><div id="enemySupplyFill" class="meter-fill zerg"></div></div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-header">
+              <span>Objective Control</span>
+            </div>
+            <div id="objectiveControl" class="objective-control-list"></div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-header">
+              <span>Round Summary</span>
+            </div>
+            <div id="roundSummary" class="objective-control-list"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Your Reserves</h2>
+          <div id="playerReserves" class="unit-list"></div>
+        </section>
+
+        <section class="card">
+          <h2>Your Battlefield Units</h2>
+          <div id="playerBattlefield" class="unit-list"></div>
+        </section>
+      </aside>
+
+      <section class="board-panel">
+        <div class="board-toolbar">
+          <div id="turnBanner" class="turn-banner playerA">Blue Player Active</div>
+          <div id="modeBanner" class="mode-banner">Select a unit to begin.</div>
+        </div>
+        <div class="board-wrap">
+          <svg id="battlefield" viewBox="0 0 36 36" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+      </section>
+
+      <aside class="panel right-panel">
+        <section class="card">
+          <h2>Selected Unit</h2>
+          <div id="selectedUnitPanel" class="empty-state">No unit selected.</div>
+          <div id="actionButtons" class="action-stack"></div>
+        </section>
+
+        <section class="card">
+          <h2>Enemy Reserves</h2>
+          <div id="enemyReserves" class="unit-list compact"></div>
+        </section>
+
+        <section class="card">
+          <h2>Enemy Battlefield Units</h2>
+          <div id="enemyBattlefield" class="unit-list compact"></div>
+        </section>
+
+        <section class="card log-card">
+          <h2>Combat Log</h2>
+          <div id="logPanel" class="log-panel"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="./ui/main.js"></script>
+</body>
+</html>
