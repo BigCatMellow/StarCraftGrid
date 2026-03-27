@@ -9,5 +9,5 @@ export function renderAll(state, uiState, handlers) {
   renderLog(state);
   renderBoard(state, uiState, handlers);
   document.getElementById("modeBanner").textContent = handlers.getModeText();
-  document.getElementById("passBtn").disabled = !(state.activePlayer === "playerA" && state.phase === "movement" && !state.players.playerA.hasPassedThisPhase);
+  document.getElementById("passBtn").disabled = !(state.activePlayer === "playerA" && ["movement", "assault", "combat"].includes(state.phase) && !state.players.playerA.hasPassedThisPhase);
 }

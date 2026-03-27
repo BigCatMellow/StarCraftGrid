@@ -1,3 +1,5 @@
+import { getObjectiveControlSnapshot } from "../engine/objectives.js";
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function createSvgElement(name, attrs = {}) {
@@ -38,10 +40,15 @@ function addTerrain(svg, terrain) {
   }
 }
 
-function addObjectives(svg, objectives) {
+function addObjectives(svg, objectives, controlSnapshot) {
   for (const objective of objectives) {
+    const result = controlSnapshot[objective.id];
+    let ringClass = "objective-ring neutral";
+    if (result?.contested) ringClass = "objective-ring contested";
+    if (result?.controller === "playerA") ringClass = "objective-ring playerA";
+    if (result?.controller === "playerB") ringClass = "objective-ring playerB";
     svg.appendChild(createSvgElement("circle", { cx: objective.x, cy: objective.y, r: 0.75, class: "objective-marker" }));
-    svg.appendChild(createSvgElement("circle", { cx: objective.x, cy: objective.y, r: 2, class: "objective-ring" }));
+    svg.appendChild(createSvgElement("circle", { cx: objective.x, cy: objective.y, r: 2, class: ringClass }));
   }
 }
 
@@ -137,10 +144,11 @@ export function renderUnitGhost() {}
 export function renderBoard(state, uiState, handlers) {
   const svg = document.getElementById("battlefield");
   svg.innerHTML = "";
+  const controlSnapshot = getObjectiveControlSnapshot(state);
   addZones(svg, state);
   addGrid(svg, state.board.widthInches, state.board.heightInches);
   addTerrain(svg, state.board.terrain);
-  addObjectives(svg, state.deployment.missionMarkers);
+  addObjectives(svg, state.deployment.missionMarkers, controlSnapshot);
   addPathPreview(svg, uiState.previewPath);
   addSelection(svg, state, uiState);
   addPreviewUnit(svg, state, uiState);
