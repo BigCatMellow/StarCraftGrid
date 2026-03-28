@@ -171,6 +171,52 @@ function publishLogNotifications(state) {
   });
 }
 
+function enqueueNotification(message, tone = "info", durationMs = 3200) {
+  const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  uiState.notifications.push({ id, message, tone });
+  if (uiState.notifications.length > 5) {
+    uiState.notifications.shift();
+  }
+  rerender();
+  window.setTimeout(() => {
+    const index = uiState.notifications.findIndex(item => item.id === id);
+    if (index >= 0) {
+      uiState.notifications.splice(index, 1);
+      rerender();
+    }
+  }, durationMs);
+}
+
+function renderNotifications() {
+  const stack = document.getElementById("toastStack");
+  if (!stack) return;
+  stack.innerHTML = "";
+  uiState.notifications.forEach(notification => {
+    const toast = document.createElement("div");
+    toast.className = `toast ${notification.tone}`;
+    toast.innerHTML = `
+      <div class="toast-meta">Battle Update</div>
+      <div>${notification.message}</div>
+    `;
+    stack.appendChild(toast);
+  });
+}
+
+function getNotificationTone(logEntryType) {
+  if (["charge_declared", "combat_resolved", "phase_advanced", "round_scored", "game_won"].includes(logEntryType)) return "success";
+  if (["disengage_failed", "invalid_action", "cannot_act", "coherency_warning"].includes(logEntryType)) return "warn";
+  return "info";
+}
+
+function publishLogNotifications(state) {
+  if (uiState.lastSeenLogCount >= state.log.length) return;
+  const newEntries = state.log.slice(uiState.lastSeenLogCount);
+  uiState.lastSeenLogCount = state.log.length;
+  newEntries.forEach(entry => {
+    enqueueNotification(entry.text, getNotificationTone(entry.type));
+  });
+}
+
 function actionButton(label, className, onClick, disabled = false, disabledReason = "") {
   const button = document.createElement("button");
   button.className = `btn ${className}`;
@@ -284,6 +330,50 @@ function buildActionButtons() {
       if (!result.ok) showError(result.message);
     }, !hasQueuedAttacks, "No queued attacks for this unit."));
     return buttons;
+  }
+
+  return buttons;
+}
+
+function buildCardButtons() {
+  const state = store.getState();
+  const buttons = [];
+  if (state.activePlayer !== "playerA") return buttons;
+  if (state.players.playerA.hasPassedThisPhase) return buttons;
+
+  const selectedUnit = getSelectedUnit(state);
+  for (const cardEntry of state.players.playerA.hand ?? []) {
+    const card = getTacticalCard(cardEntry.cardId);
+    if (card.phase !== state.phase) continue;
+
+    if (card.target === "friendly_battlefield_unit") {
+      const hasValidSelection = selectedUnit && selectedUnit.owner === "playerA" && selectedUnit.status.location === "battlefield";
+      const label = hasValidSelection ? `Play ${card.name} (${selectedUnit.name})` : `Play ${card.name} (Select friendly battlefield unit)`;
+      buttons.push(actionButton(label, "secondary", () => {
+        const result = store.dispatch({
+          type: "PLAY_CARD",
+          payload: {
+            playerId: "playerA",
+            cardInstanceId: cardEntry.instanceId,
+            targetUnitId: selectedUnit.id
+          }
+        });
+        if (!result.ok) showError(result.message);
+      }, !hasValidSelection, "Select a friendly battlefield unit first."));
+      continue;
+    }
+
+    buttons.push(actionButton(`Play ${card.name}`, "secondary", () => {
+      const result = store.dispatch({
+        type: "PLAY_CARD",
+        payload: {
+          playerId: "playerA",
+          cardInstanceId: cardEntry.instanceId,
+          targetUnitId: null
+        }
+      });
+      if (!result.ok) showError(result.message);
+    }));
   }
 
   return buttons;
