@@ -171,22 +171,6 @@ function publishLogNotifications(state) {
   });
 }
 
-function pushToastNotification(message, tone = "info", durationMs = 3200) {
-  const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  uiState.notifications.push({ id, message, tone });
-  if (uiState.notifications.length > 5) {
-    uiState.notifications.shift();
-  }
-  rerender();
-  window.setTimeout(() => {
-    const index = uiState.notifications.findIndex(item => item.id === id);
-    if (index >= 0) {
-      uiState.notifications.splice(index, 1);
-      rerender();
-    }
-  }, durationMs);
-}
-
 function renderNotifications() {
   const stack = document.getElementById("toastStack");
   if (!stack) return;
