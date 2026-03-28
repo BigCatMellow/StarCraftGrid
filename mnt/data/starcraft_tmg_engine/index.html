@@ -14,6 +14,10 @@
         <p class="subtitle">Phase 1 foundation: reserves, supply, deploy, move, disengage, pass</p>
       </div>
       <div class="topbar-actions">
+        <button id="gridModeBtn" class="btn secondary">Grid Mode: On</button>
+        <button id="exportBtn" class="btn secondary">Export Save</button>
+        <button id="importBtn" class="btn secondary">Load Save</button>
+        <input id="importFileInput" type="file" accept="application/json" hidden />
         <button id="newGameBtn" class="btn secondary">New Game</button>
         <button id="passBtn" class="btn primary">Pass</button>
       </div>
@@ -38,6 +42,18 @@
             </div>
             <div class="meter"><div id="enemySupplyFill" class="meter-fill zerg"></div></div>
           </div>
+          <div class="progress-block">
+            <div class="progress-header">
+              <span>Objective Control</span>
+            </div>
+            <div id="objectiveControl" class="objective-control-list"></div>
+          </div>
+          <div class="progress-block">
+            <div class="progress-header">
+              <span>Round Summary</span>
+            </div>
+            <div id="roundSummary" class="objective-control-list"></div>
+          </div>
         </section>
 
         <section class="card">
@@ -56,6 +72,11 @@
           <div id="turnBanner" class="turn-banner playerA">Blue Player Active</div>
           <div id="modeBanner" class="mode-banner">Select a unit to begin.</div>
         </div>
+        <section class="card focus-card">
+          <h2>Selected Unit & Actions</h2>
+          <div id="selectedUnitPanel" class="empty-state">No unit selected.</div>
+          <div id="actionButtons" class="action-stack"></div>
+        </section>
         <div class="board-wrap">
           <svg id="battlefield" viewBox="0 0 36 36" preserveAspectRatio="xMidYMid meet"></svg>
         </div>
@@ -63,9 +84,13 @@
 
       <aside class="panel right-panel">
         <section class="card">
-          <h2>Selected Unit</h2>
-          <div id="selectedUnitPanel" class="empty-state">No unit selected.</div>
-          <div id="actionButtons" class="action-stack"></div>
+          <h2>Tactical Cards</h2>
+          <div id="tacticalCards" class="action-stack"></div>
+        </section>
+
+        <section class="card">
+          <h2>Combat Queue</h2>
+          <div id="combatQueuePanel" class="objective-control-list"></div>
         </section>
 
         <section class="card">
@@ -85,6 +110,7 @@
       </aside>
     </main>
   </div>
+  <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
 
   <script type="module" src="./ui/main.js"></script>
 </body>

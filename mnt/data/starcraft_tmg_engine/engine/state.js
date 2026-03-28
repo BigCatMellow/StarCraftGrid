@@ -11,7 +11,23 @@ function createTerrain() {
   ];
 }
 
-export function createInitialGameState({ missionId, deploymentId, armyA, armyB, firstPlayerMarkerHolder = "playerA" }) {
+function createDefaultHand(playerId, cardIds = ["focused_fire", "rapid_relocation"]) {
+  return cardIds.map((cardId, index) => ({
+    instanceId: `${playerId}_card_${cardId}_${index + 1}`,
+    cardId
+  }));
+}
+
+export function createInitialGameState({
+  missionId,
+  deploymentId,
+  armyA,
+  armyB,
+  tacticalCardsA = ["focused_fire", "rapid_relocation"],
+  tacticalCardsB = ["focused_fire", "rapid_relocation"],
+  rules = { gridMode: false },
+  firstPlayerMarkerHolder = "playerA"
+}) {
   const mission = getMission(missionId);
   const deployment = getDeployment(deploymentId);
   const units = {};
@@ -39,6 +55,9 @@ export function createInitialGameState({ missionId, deploymentId, armyA, armyB, 
       heightInches: deployment.boardHeightInches,
       terrain: createTerrain()
     },
+    rules: {
+      gridMode: Boolean(rules?.gridMode)
+    },
     players: {
       playerA: {
         vp: 0,
@@ -46,7 +65,9 @@ export function createInitialGameState({ missionId, deploymentId, armyA, armyB, 
         battlefieldUnitIds: [],
         supplyPool: mission.startingSupply,
         availableSupply: mission.startingSupply,
-        hasPassedThisPhase: false
+        hasPassedThisPhase: false,
+        hand: createDefaultHand("playerA", tacticalCardsA),
+        discardPile: []
       },
       playerB: {
         vp: 0,
@@ -54,10 +75,18 @@ export function createInitialGameState({ missionId, deploymentId, armyA, armyB, 
         battlefieldUnitIds: [],
         supplyPool: mission.startingSupply,
         availableSupply: mission.startingSupply,
-        hasPassedThisPhase: false
+        hasPassedThisPhase: false,
+        hand: createDefaultHand("playerB", tacticalCardsB),
+        discardPile: []
       }
     },
     units,
+    combatQueue: [],
+    effects: [],
+    lastCombatReport: [],
+    lastRoundSummary: null,
+    objectiveControl: Object.fromEntries(deployment.missionMarkers.map(marker => [marker.id, { objectiveId: marker.id, controller: null, playerASupply: 0, playerBSupply: 0, contested: false }])),
+    winner: null,
     firstPlayerMarkerHolder,
     activePlayer: firstPlayerMarkerHolder,
     log: [
