@@ -135,6 +135,13 @@ export function renderSelectedUnit(state, uiState) {
     return;
   }
   const alive = unit.modelIds.filter(id => unit.models[id].alive).length;
+  const rangedSummary = (unit.rangedWeapons ?? []).map(weapon =>
+    `${weapon.name} (${weapon.attacksPerModel ?? weapon.shotsPerModel ?? 1} atk @ ${weapon.range ?? "melee"}", hit ${weapon.hitTarget ?? "?"}+ wound ${weapon.woundTarget ?? "?"}+)`
+  );
+  const meleeSummary = (unit.meleeWeapons ?? []).map(weapon =>
+    `${weapon.name} (${weapon.attacksPerModel ?? 1} atk, hit ${weapon.hitTarget ?? "?"}+ wound ${weapon.woundTarget ?? "?"}+)`
+  );
+  const abilities = unit.abilities?.length ? unit.abilities.join(", ") : "None";
   panel.innerHTML = `
     <div class="selected-panel-title">${unit.name}</div>
     <div class="badge-row">
@@ -142,12 +149,26 @@ export function renderSelectedUnit(state, uiState) {
       <span class="badge">${unit.status.location}</span>
       ${unit.status.engaged ? '<span class="badge warn">Engaged</span>' : ''}
       ${unit.status.outOfCoherency ? '<span class="badge warn">Out of Coherency</span>' : ''}
+      ${unit.status.assaultActivated ? '<span class="badge good">Assault Activated</span>' : ''}
+      ${unit.status.combatActivated ? '<span class="badge good">Combat Activated</span>' : ''}
     </div>
     <div class="selected-stats">
       <div class="selected-stat"><div class="k">Speed</div><div class="v">${unit.speed}</div></div>
       <div class="selected-stat"><div class="k">Supply</div><div class="v">${unit.currentSupplyValue}</div></div>
       <div class="selected-stat"><div class="k">Models Alive</div><div class="v">${alive}</div></div>
       <div class="selected-stat"><div class="k">Leading Model</div><div class="v">${unit.leadingModelId.replace(`${unit.id}_`, "")}</div></div>
+    </div>
+    <div class="selected-detail">
+      <div class="k">Abilities</div>
+      <div class="v">${abilities}</div>
+    </div>
+    <div class="selected-detail">
+      <div class="k">Ranged Weapons</div>
+      <div class="v">${rangedSummary.length ? rangedSummary.join(" • ") : "None"}</div>
+    </div>
+    <div class="selected-detail">
+      <div class="k">Melee Weapons</div>
+      <div class="v">${meleeSummary.length ? meleeSummary.join(" • ") : "None"}</div>
     </div>
   `;
 }
@@ -182,7 +203,18 @@ export function renderTacticalCards(state, buttons) {
     return;
   }
 
-  buttons.forEach(button => container.appendChild(button));
+  buttons.forEach(button => {
+    const wrap = document.createElement("div");
+    wrap.className = "card-action-item";
+    wrap.appendChild(button);
+    if (button.title) {
+      const detail = document.createElement("div");
+      detail.className = "card-action-detail";
+      detail.textContent = button.title.replace(/\n/g, " ");
+      wrap.appendChild(detail);
+    }
+    container.appendChild(wrap);
+  });
 }
 
 export function renderCombatQueue(state) {

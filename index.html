@@ -72,6 +72,11 @@
           <div id="turnBanner" class="turn-banner playerA">Blue Player Active</div>
           <div id="modeBanner" class="mode-banner">Select a unit to begin.</div>
         </div>
+        <section class="card focus-card">
+          <h2>Selected Unit & Actions</h2>
+          <div id="selectedUnitPanel" class="empty-state">No unit selected.</div>
+          <div id="actionButtons" class="action-stack"></div>
+        </section>
         <div class="board-wrap">
           <svg id="battlefield" viewBox="0 0 36 36" preserveAspectRatio="xMidYMid meet"></svg>
         </div>
@@ -79,9 +84,13 @@
 
       <aside class="panel right-panel">
         <section class="card">
-          <h2>Selected Unit</h2>
-          <div id="selectedUnitPanel" class="empty-state">No unit selected.</div>
-          <div id="actionButtons" class="action-stack"></div>
+          <h2>Tactical Cards</h2>
+          <div id="tacticalCards" class="action-stack"></div>
+        </section>
+
+        <section class="card">
+          <h2>Combat Queue</h2>
+          <div id="combatQueuePanel" class="objective-control-list"></div>
         </section>
 
         <section class="card">
