@@ -125,7 +125,7 @@ function showError(message) {
   }, 4200);
 }
 
-function enqueueNotification(message, tone = "info", durationMs = 5200) {
+function pushToastNotification(message, tone = "info", durationMs = 5200) {
   const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   uiState.notifications.push({ id, message, tone });
   if (uiState.notifications.length > 5) {
@@ -171,7 +171,7 @@ function publishLogNotifications(state) {
   });
 }
 
-function enqueueNotification(message, tone = "info", durationMs = 3200) {
+function pushToastNotification(message, tone = "info", durationMs = 3200) {
   const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   uiState.notifications.push({ id, message, tone });
   if (uiState.notifications.length > 5) {
